@@ -1,0 +1,82 @@
+{
+  "name": "and22",
+  "folder": "and22",
+  "standard": "08",
+  "author": "Jalali",
+  "created": "2026-11-06",
+  "updated": "2026-11-06T13:58:54Z",
+  "entity": "and22",
+  "top_entity": "and22",
+  "active_tb": "tb_and22.vhd",
+  "architecture": "Behavioral",
+  "ports": [
+    {
+      "name": "A",
+      "dir": "in",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    },
+    {
+      "name": "B",
+      "dir": "in",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    },
+    {
+      "name": "Y",
+      "dir": "out",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    }
+  ],
+  "files": [
+    {
+      "filename": "and22.vhd",
+      "entity": "and22",
+      "type": "design",
+      "architecture": "Behavioral",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : and22\n-- Module Name  : and22.vhd\n-- Entity Name  : and22\n-- Architecture : Behavioral\n-- Target Lang  : VHDL-2008\n-- Engineer     : Jalali\n-- Create Date  : 2026-11-06\n-- Tool Versions: GHDL 6.0.0\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity and22 is\n  port (\n    A            : in    std_logic;\n    B            : in    std_logic;\n    Y            : out   std_logic\n  );\nend entity and22;\n\narchitecture Behavioral of and22 is\n    \n  -- Component declaration for or22\n  component or22 is\n    port (\n    A                : in     std_logic;\n    B                : in     std_logic;\n    Y                : out    std_logic\n    );\n  end component or22;\n\nbegin\n\n  Y <= a and b;\n    \n  -- Component instantiation for or22\n  U_or22 : or22\n    port map (\n    A                => A,\n    B                => B,\n    Y                => Y\n    );\n\n\nend architecture Behavioral;\n",
+      "ports": [
+        {
+          "dir": "in",
+          "lsb": 0,
+          "msb": 7,
+          "name": "A",
+          "vector": false
+        },
+        {
+          "dir": "in",
+          "lsb": 0,
+          "msb": 7,
+          "name": "B",
+          "vector": false
+        },
+        {
+          "dir": "out",
+          "lsb": 0,
+          "msb": 7,
+          "name": "Y",
+          "vector": false
+        }
+      ]
+    },
+    {
+      "filename": "tb_and22.vhd",
+      "entity": "tb_and22",
+      "type": "simulation",
+      "architecture": "sim",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : and22\n-- Testbench For: and22\n-- Module Name  : tb_and22.vhd\n-- Entity Name  : tb_and22\n-- Target Lang  : VHDL-2008\n-- Engineer     : Jalali\n-- Create Date  : 2026-11-06\n-- Tool Versions: GHDL 6.0.0\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_and22 is\nend entity tb_and22;\n\narchitecture sim of tb_and22 is\n\n  -- clock period constant\n  constant CLK_PERIOD : time := 10 ns;\n\n  -- internal interconnect & stimulus signals\n  signal A          : std_logic := '0';\n  signal B          : std_logic := '0';\n  signal Y          : std_logic := '0';\n\nbegin\n\n  -- instantiate unit under test (DUT)\n  dut : entity work.and22\n    port map (\n      A          => A,\n      B          => B,\n      Y          => Y\n    );\n\n  -- stimulus process: drive input vectors\n  stim_proc : process\n  begin\n    -- initial stimulus state\n    A <= '0';\n    B <= '0';\n    wait for 20 ns;\n            A <= '1';\n    B <= '0';\n    wait for 20 ns;\n            A <= '0';\n    B <= '1';\n    wait for 20 ns;\n            A <= '1';\n    B <= '1';\nwait for 20 ns;\n\n\n\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+      "ports": []
+    }
+  ],
+  "dependencies": [
+    "or22"
+  ],
+  "design_code": "----------------------------------------------------------------------------------\n-- Project Name : and22\n-- Module Name  : and22.vhd\n-- Entity Name  : and22\n-- Architecture : Behavioral\n-- Target Lang  : VHDL-2008\n-- Engineer     : Jalali\n-- Create Date  : 2026-11-06\n-- Tool Versions: GHDL 6.0.0\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity and22 is\n  port (\n    A            : in    std_logic;\n    B            : in    std_logic;\n    Y            : out   std_logic\n  );\nend entity and22;\n\narchitecture Behavioral of and22 is\n    \n  -- Component declaration for or22\n  component or22 is\n    port (\n    A                : in     std_logic;\n    B                : in     std_logic;\n    Y                : out    std_logic\n    );\n  end component or22;\n\nbegin\n\n  Y <= a and b;\n    \n  -- Component instantiation for or22\n  U_or22 : or22\n    port map (\n    A                => A,\n    B                => B,\n    Y                => Y\n    );\n\n\nend architecture Behavioral;\n",
+  "tb_code": "----------------------------------------------------------------------------------\n-- Project Name : and22\n-- Testbench For: and22\n-- Module Name  : tb_and22.vhd\n-- Entity Name  : tb_and22\n-- Target Lang  : VHDL-2008\n-- Engineer     : Jalali\n-- Create Date  : 2026-11-06\n-- Tool Versions: GHDL 6.0.0\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_and22 is\nend entity tb_and22;\n\narchitecture sim of tb_and22 is\n\n  -- clock period constant\n  constant CLK_PERIOD : time := 10 ns;\n\n  -- internal interconnect & stimulus signals\n  signal A          : std_logic := '0';\n  signal B          : std_logic := '0';\n  signal Y          : std_logic := '0';\n\nbegin\n\n  -- instantiate unit under test (DUT)\n  dut : entity work.and22\n    port map (\n      A          => A,\n      B          => B,\n      Y          => Y\n    );\n\n  -- stimulus process: drive input vectors\n  stim_proc : process\n  begin\n    -- initial stimulus state\n    A <= '0';\n    B <= '0';\n    wait for 20 ns;\n            A <= '1';\n    B <= '0';\n    wait for 20 ns;\n            A <= '0';\n    B <= '1';\n    wait for 20 ns;\n            A <= '1';\n    B <= '1';\nwait for 20 ns;\n\n\n\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+  "design_ok": false,
+  "tb_ok": false
+}

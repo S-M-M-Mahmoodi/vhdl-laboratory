@@ -1,0 +1,3 @@
+# VHDL Laboratory - Dependencies
+flask>=2.0.0
+vcdvcd>=2.0.0

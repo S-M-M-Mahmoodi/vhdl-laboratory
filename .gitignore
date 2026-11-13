@@ -1,0 +1,37 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.tmp
+
+# GHDL binary distribution (excluded to keep repo size minimal ~1MB; bundled in releases)
+ghdl-mcode-*/
+*.cf
+*.o
+
+# Simulation workspace scratchpad (preserve directory structure via .gitkeep)
+workspace/*
+!workspace/.gitkeep
+
+# Automatic update backups & generated patch packages
+_backup_updates/
+*.zip
+*.rar
+
+# Instructor patch generator tools (kept private)
+make_patch.py
+make_patch.bat
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environments
+venv/
+env/
+.env

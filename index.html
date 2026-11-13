@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VHDL Laboratory (Digital Systems Laboratory 2)</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='12' y='12' width='24' height='24' rx='4' fill='%230d2818' stroke='%232ee66b' stroke-width='2.5'/%3E%3Cpath d='M17 24h4l2-6 4 12 2-6h2' stroke='%232ee66b' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/vendor/codemirror.min.css">
+<link rel="stylesheet" href="assets/vendor/dracula.min.css">
+<link rel="stylesheet" href="assets/css/app.css">
+<script src="assets/vendor/codemirror.min.js"></script>
+<script src="assets/vendor/vhdl.min.js"></script>
+<script src="assets/vendor/closebrackets.min.js"></script>
+<script src="assets/vendor/matchbrackets.min.js"></script>
+<script src="assets/vendor/comment.min.js"></script>
+<script src="assets/vendor/active-line.min.js"></script>
+</head>
+<body>
+
+<!-- ==================== top progress bar & zen exit ==================== -->
+<div id="topProgressBar"></div>
+<button id="btnExitZen" class="zen-exit-btn">✕ Exit Zen Mode (Esc)</button>
+
+<!-- ==================== inline SVG sprite (logo + icons) ==================== -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <g id="logo-mark">
+      <rect x="12" y="12" width="24" height="24" rx="4" fill="#0d2818" stroke="#2ee66b" stroke-width="2.5"/>
+      <path d="M17 24h4l2-6 4 12 2-6h2" stroke="#2ee66b" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18 12V6 M24 12V6 M30 12V6 M18 36v6 M24 36v6 M30 36v6 M12 18H6 M12 24H6 M12 30H6 M36 18h6 M36 24h6 M36 30h6" stroke="#3d6ea8" stroke-width="2.2" stroke-linecap="round"/>
+    </g>
+  </defs>
+</svg>
+
+<!-- ==================== welcome / project manager ==================== -->
+<div id="welcomeScreen" class="screen welcome">
+  <div class="welcome-bg"></div>
+  <div class="welcome-card">
+    <svg class="welcome-logo" viewBox="0 0 48 48" width="72" height="72"><use href="#logo-mark"/></svg>
+    <h1>VHDL Laboratory</h1>
+    <p class="welcome-sub">Digital Systems Laboratory 2 &middot; Offline VHDL design &amp; simulation environment</p>
+    <button id="btnNewProject" class="btn primary xl">
+      <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      New Project
+    </button>
+
+    <div class="recent">
+      <div class="recent-head">
+        <span class="recent-title">Recent Projects</span>
+        <button id="btnRefreshProjects" class="icon-btn" title="Refresh project list">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 1.5v3h-3" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div id="projectList" class="project-list"></div>
+      <div id="projectEmpty" class="project-empty" style="display:none;">
+        No saved projects yet.<br>Create your first project to get started.
+      </div>
+    </div>
+
+    <div class="welcome-foot">
+      <span id="welcomeGhdl" class="foot-chip">GHDL</span>
+      <span class="foot-chip">Flask</span>
+      <span class="foot-chip">WaveDrom</span>
+      <span class="foot-chip">100% offline</span>
+      <button id="btnWelcomeGuide" class="foot-chip foot-chip-btn" title="Open User Guide &amp; Lab Manual">User Guide</button>
+      <button id="btnWelcomeUpdate" class="foot-chip foot-chip-btn" title="Install Update Patch (.zip)">Update Patch</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== main workspace ==================== -->
+<div id="appScreen" class="screen app hidden">
+  <header class="topbar eda-header">
+    <!-- Row 1: Classic Desktop EDA Menubar -->
+    <div class="eda-menubar">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 48 48" width="20" height="20"><use href="#logo-mark"/></svg>
+        <span class="brand-title">VHDL Laboratory</span>
+        <span class="brand-sub" id="brandProject"></span>
+      </div>
+
+      <nav class="eda-menus">
+        <div class="eda-menu-item">
+          <button class="eda-menu-btn" data-menu="menuFile">File</button>
+          <div class="eda-menu-dropdown hidden" id="menuFile">
+            <button id="mFileNewProject"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>New Project...<kbd>Alt+Shift+N</kbd></button>
+            <button id="mFileOpenProjects"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M2 4h4l2 2h6v7H2z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>Projects Manager...<kbd>Alt+P</kbd></button>
+            <button id="mFileAddSource"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>Add / Create Source...<kbd>Alt+N</kbd></button>
+            <div class="eda-menu-divider"></div>
+            <button id="mFileSave"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M3 2h8l2 2v10H3zM5 2v4h6V2M5 9h6v5H5z" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Save Project<kbd>Ctrl+S</kbd></button>
+            <button id="mFileImport"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 10V2M5 5l3-3 3 3M3 13h10" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Import Source Files (.vhd)...</button>
+            <div class="eda-menu-divider"></div>
+            <button id="mFileExportDesign">Export Current File (.vhd)</button>
+            <button id="mFileExportTb">Export Testbench (.vhd)</button>
+            <button id="mFileExportRar">Export Project as RAR (.rar)...</button>
+            <button id="mFileExportZip">Export Project as ZIP (.zip)</button>
+          </div>
+        </div>
+
+        <div class="eda-menu-item">
+          <button class="eda-menu-btn" data-menu="menuEdit">Edit</button>
+          <div class="eda-menu-dropdown hidden" id="menuEdit">
+            <button id="mEditUndo">Undo<kbd>Ctrl+Z</kbd></button>
+            <button id="mEditRedo">Redo<kbd>Ctrl+Y</kbd></button>
+            <div class="eda-menu-divider"></div>
+            <button id="mEditFormat">Format VHDL Code<kbd>Ctrl+Shift+F</kbd></button>
+            <button id="mEditTemplate">VHDL Templates...</button>
+            <div class="eda-menu-divider"></div>
+            <button id="mEditFontInc">Increase Editor Font Size<kbd>Ctrl++</kbd></button>
+            <button id="mEditFontDec">Decrease Editor Font Size<kbd>Ctrl+-</kbd></button>
+          </div>
+        </div>
+
+        <div class="eda-menu-item">
+          <button class="eda-menu-btn" data-menu="menuView">View</button>
+          <div class="eda-menu-dropdown hidden" id="menuView">
+            <button id="mViewNav">Toggle Project Navigator<kbd>Alt+1</kbd></button>
+            <button id="mViewConsole">Toggle Console / Log<kbd>Alt+2</kbd></button>
+            <button id="mViewZen">Toggle Zen Mode (Fullscreen)<kbd>Esc</kbd></button>
+            <div class="eda-menu-divider"></div>
+            <button id="mViewWave">Waveform Viewer<kbd>F6</kbd></button>
+            <div class="eda-menu-divider"></div>
+            <div class="eda-menu-header" style="padding:4px 14px;font-size:10px;text-transform:uppercase;color:var(--faint);letter-spacing:1px;font-weight:600;">Themes</div>
+            <button id="mThemeDark" class="theme-menu-btn active"><span class="menu-check">&#10003;</span> VS Code Dark+ (Default)</button>
+            <button id="mThemeOneDark" class="theme-menu-btn"><span class="menu-check">&nbsp;</span> One Dark Pro</button>
+            <button id="mThemeCyberpunk" class="theme-menu-btn"><span class="menu-check">&nbsp;</span> Cyberpunk Neon (Dark)</button>
+            <button id="mThemeMonokai" class="theme-menu-btn"><span class="menu-check">&nbsp;</span> Monokai Pro</button>
+            <button id="mThemeSolarizedDark" class="theme-menu-btn"><span class="menu-check">&nbsp;</span> Solarized Dark</button>
+            <button id="mThemeLight" class="theme-menu-btn"><span class="menu-check">&nbsp;</span> Light (Clean)</button>
+            <button id="mThemeSolarizedLight" class="theme-menu-btn"><span class="menu-check">&nbsp;</span> Solarized Light</button>
+          </div>
+        </div>
+
+        <div class="eda-menu-item">
+          <button class="eda-menu-btn" data-menu="menuProject">Project</button>
+          <div class="eda-menu-dropdown hidden" id="menuProject">
+            <button id="mProjAddSource">Add Source File...<kbd>Alt+N</kbd></button>
+            <button id="mProjComponents">Components &amp; Hierarchy...<kbd>Alt+C</kbd></button>
+            <button id="mProjImport">Import Source Files...</button>
+          </div>
+        </div>
+
+        <div class="eda-menu-item">
+          <button class="eda-menu-btn" data-menu="menuSim">Simulation</button>
+          <div class="eda-menu-dropdown hidden" id="menuSim">
+            <button id="mSimCheck">Check Syntax<kbd>F7 / Ctrl+B</kbd></button>
+            <button id="mSimRun">Simulate Behavioral Model<kbd>F5 / Ctrl+Enter</kbd></button>
+            <div class="eda-menu-divider"></div>
+            <button id="mSimWave">Open Waveform Viewer...<kbd>F6</kbd></button>
+            <button id="mSimVcd">Download Waveform (.vcd)...</button>
+          </div>
+        </div>
+
+        <div class="eda-menu-item">
+          <button class="eda-menu-btn" data-menu="menuHelp">Help</button>
+          <div class="eda-menu-dropdown hidden" id="menuHelp">
+            <button id="mHelpGuide">User Guide &amp; Lab Manual<kbd>F1</kbd></button>
+            <button id="mHelpShortcuts">Keyboard Shortcuts Reference...</button>
+            <div class="eda-menu-divider"></div>
+            <button id="mHelpUpdate"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2v9M4 8l4 4 4-4M2 14h12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Install Update Patch (.zip)...</button>
+            <div class="eda-menu-divider"></div>
+            <button id="mHelpAbout">About VHDL Laboratory</button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="eda-menubar-right">
+        <div class="status" id="statusIndicator" title="System and simulation status">
+          <span id="dot" class="dot idle"></span>
+          <span id="statusText">Ready</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Classic EDA Quick-Access Toolbar -->
+    <div class="eda-toolbar">
+      <!-- Toolbar Group: Project & Files -->
+      <div class="tb-group">
+        <button id="btnBack" class="btn ghost tb-btn" title="Save and return to projects (Alt+P)">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn-label">Projects</span>
+        </button>
+        <button id="btnSave" class="btn tb-btn" title="Save project (Ctrl+S)">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M3 2h8l2 2v10H3zM5 2v4h6V2M5 9h6v5H5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>
+          <span class="btn-label">Save</span>
+        </button>
+        <button id="btnToolbarAddSource" class="btn tb-btn" title="Add / Create Source File (Alt+N)">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="btn-label">Add Source</span>
+        </button>
+        <button id="btnComponents" class="btn tb-btn" title="Manage structural components and block dependencies">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M2 3h5v5H2zM9 3h5v5H9zM2 10h5v5H2zM9 10h5v5H9z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+          <span class="btn-label">Components</span>
+        </button>
+        <div class="dropdown" id="exportDropdown">
+          <button id="btnExportMenu" class="btn tb-btn" title="Export / Download VHDL or ZIP">
+            <svg viewBox="0 0 16 16" width="13" height="13"><path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="btn-label">Export</span>
+          </button>
+          <div class="dropdown-menu hidden" id="exportMenu">
+            <button id="btnExportDesign">Download Current File (.vhd)</button>
+            <button id="btnExportTb">Download Testbench (.vhd)</button>
+            <button id="btnExportRar">Export Project as RAR (.rar)...</button>
+            <button id="btnExportZip">Download Project (ZIP)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-sep"></div>
+
+      <!-- Toolbar Group: Simulation Target & Duration -->
+      <div class="tb-group">
+        <div class="ctl-sim-target" title="Select target simulation testbench">
+          <label class="ctl" for="selSimTarget">
+            <svg class="tb-target-icon" viewBox="0 0 16 16" width="12" height="12" style="color:var(--cyan);flex:0 0 auto;"><path d="M8 2l5 10H3z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+            <span class="ctl-lbl">target tb</span>
+            <select id="selSimTarget" class="target-tb-select">
+              <option value="" disabled selected>No Testbench</option>
+            </select>
+          </label>
+        </div>
+        <div class="ctl-time-wrap" style="display:flex;align-items:center;gap:6px">
+          <label class="ctl" title="GHDL --stop-time (e.g. 500ns / 1us / 2ms)">
+            <span class="ctl-lbl">stop</span>
+            <input id="stopTime" value="1us" spellcheck="false">
+          </label>
+          <div class="quick-chips">
+            <button class="chip-btn" data-time="100ns">100ns</button>
+            <button class="chip-btn" data-time="500ns">500ns</button>
+            <button class="chip-btn active" data-time="1us">1µs</button>
+            <button class="chip-btn" data-time="5us">5µs</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-sep"></div>
+
+      <!-- Toolbar Group: Core Execution Actions -->
+      <div class="tb-group">
+        <button id="btnCheck" class="btn accent tb-btn" title="Check Syntax (F7 / Ctrl+B)">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="m2.5 8.5 3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn-text-full">Check Syntax</span>
+          <span class="btn-text-short">Check</span>
+        </button>
+        <button id="btnSim" class="btn primary sim-hidden tb-btn" title="Simulate Behavioral Model (F5 / Ctrl+Enter)">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M3 2.5v11l10-5.5z" fill="currentColor"/></svg>
+          <span class="btn-text-full">Simulate Behavioral Model</span>
+          <span class="btn-text-short">Simulate</span>
+        </button>
+        <button id="btnWave" class="btn wave-hidden tb-btn" title="Open the waveform viewer window (F6)">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M1 8h3l2-5 4 10 2-5h3" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn-label">Waveforms</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="workspace-body" id="workspaceBody">
+    <!-- Project Navigator Sidebar -->
+    <aside class="nav-pane" id="navPane">
+      <div class="nav-head">
+        <div class="nav-title">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M1.5 2.5h4l1.5 2h7.5v8.5h-13z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          <span>Project Navigator</span>
+        </div>
+        <div class="nav-actions">
+          <button id="btnNavAddSource" class="icon-btn" title="Add Source File (+)">
+            <svg viewBox="0 0 16 16" width="13" height="13"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <button id="btnNavToggle" class="icon-btn" title="Collapse Navigator">
+            <svg viewBox="0 0 16 16" width="13" height="13"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="nav-info-banner" id="navInfoBanner">
+        <div class="nav-info-row">
+          <span class="nav-info-key">Dir:</span>
+          <span class="nav-info-val" id="navInfoFolder" title="Project Folder">projects/</span>
+        </div>
+        <div class="nav-info-row">
+          <span class="nav-info-key">Lang:</span>
+          <span class="nav-info-val" id="navInfoStd">VHDL-2008</span>
+        </div>
+      </div>
+      <div class="nav-filter-box">
+        <input id="navFilter" class="nav-filter" placeholder="Filter sources..." spellcheck="false" autocomplete="off">
+      </div>
+      <div class="nav-tree" id="navTree">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </aside>
+
+    <!-- Collapsed Navigator Ribbon (Reopen Project Navigator) -->
+    <div id="navCollapsedRibbon" class="nav-collapsed-ribbon hidden" title="Click to open Project Navigator (Alt+1)">
+      <div class="ribbon-icon">
+        <svg viewBox="0 0 16 16" width="14" height="14"><path d="M1.5 2.5h4l1.5 2h7.5v8.5h-13z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 7l2 2-2 2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <span class="ribbon-text">Project Navigator</span>
+    </div>
+
+    <!-- Draggable horizontal splitter between Navigator and Editor -->
+    <div id="navSplitter" class="hsplit" title="Drag to resize Project Navigator">
+      <span class="hgrip"></span>
+    </div>
+
+    <!-- Main Editor & Console pane -->
+    <main class="split">
+      <!-- Dynamic editor pane -->
+      <section class="editor-pane">
+        <div class="tabs" id="editorTabsBar">
+          <div class="editor-tabs-scroll" id="editorTabs">
+            <!-- Dynamic file tabs rendered by app.js -->
+          </div>
+          <button id="btnTabAdd" class="tab-add-btn" title="Add Source File">+</button>
+          <input type="file" id="fileImport" accept=".vhd,.vhdl" multiple style="display:none">
+
+          <div class="editor-tab-actions">
+            <span class="tab-info" id="editorInfo"></span>
+            <span class="cursor-pos" id="editorCursorPos" title="Cursor line and column">Ln 1, Col 1</span>
+            <button id="btnZen" class="icon-btn" title="Toggle Zen Mode (Fullscreen Distraction-Free)">
+              <svg viewBox="0 0 16 16" width="11" height="11"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <span class="font-ctl">
+              <button id="fontDec" class="icon-btn" title="Decrease editor font size (Ctrl+Scroll down)">
+                <svg viewBox="0 0 16 16" width="13" height="13"><path d="M2 5h7M5.5 5l2.5 6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </button>
+              <span id="fontVal" title="Editor font size">13.5px</span>
+              <button id="fontInc" class="icon-btn" title="Increase editor font size (Ctrl+Scroll up)">
+                <svg viewBox="0 0 16 16" width="13" height="13"><path d="M2 8h7M5.5 4.5v7M5.5 4.5 8 8M5.5 4.5 3 8" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </button>
+            </span>
+          </div>
+        </div>
+        <div class="editor-host">
+          <div class="cm-wrap" id="cmWrap"><textarea id="codeEditor"></textarea></div>
+        </div>
+      </section>
+
+      <!-- draggable splitter: editor height <-> console height -->
+      <div id="vSplit" class="vsplit" title="Drag to resize the console — double-click to reset">
+        <span class="grip"></span>
+      </div>
+
+      <!-- console -->
+      <section class="console-pane" id="consolePane">
+        <div class="pane-head">
+          <span class="pane-title">
+            <svg viewBox="0 0 16 16" width="12" height="12"><path d="m2 4 4 4-4 4M8 12h6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Console
+          </span>
+          <span class="proc" id="consoleProc"></span>
+          <button id="btnClear" class="btn ghost sm" style="margin-left:auto">clear</button>
+        </div>
+        <div class="console-body" id="console"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==================== app footer / copyright ==================== -->
+  <footer class="app-footer">
+    <div class="footer-left">
+      <span>&copy; 2026 <span class="author">S.M.M.Mahmoodi</span></span>
+      <span>&middot; VHDL Laboratory (Digital Systems Laboratory 2)</span>
+      <span>&middot; VHDL-2008 Offline Simulator</span>
+    </div>
+    <div class="footer-right">
+      <span id="footerGhdl">GHDL</span>
+      <span>&middot;</span>
+      <span id="footerDeps">0 Components Linked</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ==================== new project wizard ==================== -->
+<div id="wizardModal" class="overlay hidden">
+  <div class="modal wizard">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 48 48" width="22" height="22"><use href="#logo-mark"/></svg>
+        New Project
+      </h2>
+      <button id="wizClose" class="icon-btn" title="Close">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="wiz-grid-4">
+        <label class="field">
+          <span>Project Name</span>
+          <input id="wizName" placeholder="e.g. 4bit_adder" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Top Entity Name</span>
+          <input id="wizEntity" placeholder="e.g. adder4" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Project Folder / Directory</span>
+          <div class="folder-input-wrap">
+            <span class="folder-prefix">projects/</span>
+            <input id="wizFolder" placeholder="e.g. 4bit_adder" spellcheck="false" autocomplete="off">
+          </div>
+        </label>
+        <label class="field">
+          <span>Architecture Name</span>
+          <input id="wizArch" value="Behavioral" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>VHDL Language Standard</span>
+          <select id="wizStandard">
+            <option value="08" selected>VHDL-2008 (--std=08) [Recommended]</option>
+            <option value="93c">VHDL-93 (--std=93c)</option>
+            <option value="02">VHDL-2002 (--std=02)</option>
+            <option value="19">VHDL-2019 (--std=19)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Author / Designer (optional)</span>
+          <input id="wizAuthor" placeholder="e.g. Your Name" spellcheck="false" autocomplete="off">
+        </label>
+      </div>
+
+      <div class="ports-block">
+        <div class="ports-head">
+          <span class="ports-title">Ports (entity interface)</span>
+          <button id="wizAddPort" class="btn sm">+ Add Port</button>
+        </div>
+        <div class="ports-cols">
+          <span>Name</span><span>Direction</span><span>Vector</span>
+          <span>Range (MSB : LSB)</span><span>Type</span><span></span>
+        </div>
+        <div id="wizPortRows"></div>
+      </div>
+
+      <div class="wiz-preview">
+        <div class="preview-title">Generated skeleton — preview</div>
+        <pre id="wizPreview"></pre>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span id="wizError" class="wiz-error"></span>
+      <button id="wizCancel" class="btn">Cancel</button>
+      <button id="wizCreate" class="btn primary">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== testbench prompt ==================== -->
+<div id="tbModal" class="overlay hidden">
+  <div class="modal small">
+    <div class="modal-body tb-prompt">
+      <div class="tb-badge">
+        <svg viewBox="0 0 24 24" width="26" height="26"><path d="m4 12.5 5 5L20 6.5" stroke="#2ee66b" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h3>Syntax check passed</h3>
+      <p>Do you want to add a testbench file to this project?</p>
+      <p class="dim sm-text">An ISE-style testbench template will be generated &mdash;<br>
+      you complete the stimulus yourself.</p>
+    </div>
+    <div class="modal-foot">
+      <button id="tbNotNow" class="btn">Not Now</button>
+      <button id="tbAdd" class="btn primary">Add Testbench</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== waveform viewer window ==================== -->
+<div id="waveModal" class="wv-overlay hidden">
+  <div class="wv-window" id="wvWindow">
+    <div class="wv-titlebar" id="wvTitlebar">
+      <svg class="wv-logo" viewBox="0 0 48 48" width="22" height="22"><use href="#logo-mark"/></svg>
+      <span class="wv-title">Waveform Viewer</span>
+      <span class="wv-sub" id="wvSub"></span>
+      <div class="wv-win-actions">
+        <button class="wv-win-btn" id="wvMax" title="Maximize / Restore Window (Double-click titlebar)">
+          <svg id="wvMaxIcon" viewBox="0 0 16 16" width="12" height="12"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        </button>
+        <button class="wv-win-btn wv-close" id="wvClose" title="Close (Esc)">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="wv-toolbar">
+      <div class="wv-group">
+        <button id="wvZoomOut" class="wv-btn" title="Zoom out">
+          <svg viewBox="0 0 16 16" width="13" height="13"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M4.8 7h4.4M11 11l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+        <button id="wvZoomIn" class="wv-btn" title="Zoom in">
+          <svg viewBox="0 0 16 16" width="13" height="13"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M4.8 7h4.4M7 4.8v4.4M11 11l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+        <button id="wvFit" class="wv-btn wide" title="Fit the whole simulation into the window">Fit</button>
+      </div>
+
+      <div class="wv-sep"></div>
+
+      <div class="wv-group">
+        <button id="wvPrevEdge" class="wv-btn nav-edge" title="Jump to previous transition (|◀)">|&#9664;</button>
+        <button id="wvNextEdge" class="wv-btn nav-edge" title="Jump to next transition (▶|)">&#9654;|</button>
+        <button id="wvSnap" class="wv-btn active" title="Magnetic snap cursor to nearest signal edge / transition">Snap: ON</button>
+      </div>
+
+      <div class="wv-sep"></div>
+
+      <div class="wv-group">
+        <label class="wv-lbl" for="wvFormat">bus values</label>
+        <select id="wvFormat">
+          <option value="hex" selected>Hex</option>
+          <option value="dec">Decimal</option>
+          <option value="bin">Binary</option>
+        </select>
+      </div>
+
+      <div class="wv-sep"></div>
+
+      <div class="wv-group">
+        <button id="wvAutoColors" class="wv-btn wide" title="Give every signal its own color">Auto colors</button>
+        <button id="wvResetColors" class="wv-btn wide" title="Make every trace green again">All green</button>
+      </div>
+
+      <div class="wv-sep"></div>
+
+      <div class="wv-group">
+        <button id="wvClearCursors" class="wv-btn" title="Clear measurement cursors (A &amp; B)">Clear Cursors</button>
+        <button id="wvStats" class="wv-btn" title="Toggle timing statistics &amp; duty-cycle report table">Timing Stats</button>
+        <button id="wvUnhideAll" class="wv-btn hidden" title="Unhide all hidden signals">Show All</button>
+      </div>
+
+      <div class="wv-sep"></div>
+
+      <div class="wv-group">
+        <button id="wvSavePng" class="wv-btn wide primary" title="Export the waveform as a PNG image">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save PNG
+        </button>
+        <button id="wvSaveSvg" class="wv-btn wide" title="Export the waveform as a vector SVG file">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save SVG
+        </button>
+        <button id="wvSaveCsv" class="wv-btn wide" title="Export raw signal transition data as CSV (for Excel / MATLAB)">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M4 2h8l2 2v10H2V2z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.5"/></svg>
+          Save CSV
+        </button>
+        <button id="wvSaveVcd" class="wv-btn wide" title="Download IEEE-1364 standard VCD waveform file (for GTKWave &amp; Lab Reports)">
+          <svg viewBox="0 0 16 16" width="12" height="12"><path d="M2 14h12M8 2v9M4 7l4 4 4-4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save VCD
+        </button>
+      </div>
+
+      <input id="wvFilter" class="wv-filter" placeholder="filter signals&hellip;" spellcheck="false" autocomplete="off">
+    </div>
+
+    <!-- Timing Statistics Table (HPLP-inspired) -->
+    <div id="wvStatsPanel" class="wv-stats-panel hidden">
+      <div class="wv-stats-head">
+        <span>Signal Timing &amp; Duty-Cycle Statistics</span>
+        <button id="wvCopyStats" class="wv-btn sm" title="Copy statistics table to clipboard">Copy Text</button>
+      </div>
+      <div class="wv-stats-body">
+        <table class="wv-stats-table">
+          <thead>
+            <tr>
+              <th>Signal</th>
+              <th>Width</th>
+              <th>Edges</th>
+              <th>High Time % (Duty)</th>
+              <th>Low Time %</th>
+              <th>Est. Freq</th>
+              <th>Val @ Cursor A</th>
+              <th>Val @ Cursor B</th>
+            </tr>
+          </thead>
+          <tbody id="wvStatsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="wv-body">
+      <div class="wv-names" id="wvNames"><div class="wv-names-inner" id="wvNamesInner"></div></div>
+      <div class="wv-waves" id="wvWaves">
+        <svg id="wvSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="wv-delta-region" id="wvDeltaRegion"></div>
+        <div class="wv-cross cursor-a" id="wvCrossA"></div>
+        <div class="wv-cross cursor-b" id="wvCrossB"></div>
+      </div>
+    </div>
+
+    <div class="wv-status">
+      <span id="wvStatusL">—</span>
+      <span class="wv-hint">wheel = zoom &middot; drag = pan &middot; click = Cursor A &middot; Shift+click / right-click = Cursor B</span>
+    </div>
+
+    <div class="wv-grip" id="wvGrip" title="Drag to resize the window"></div>
+  </div>
+</div>
+
+<!-- ==================== structural components modal ==================== -->
+<div id="componentsModal" class="overlay hidden">
+  <div class="modal comp-modal">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="18" height="18"><path d="M2 3h5v5H2zM9 3h5v5H9zM2 10h5v5H2zM9 10h5v5H9z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+        Structural VHDL &amp; Component Manager
+      </h2>
+      <button id="compClose" class="icon-btn" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="dim sm-text" style="margin-top:0">
+        Manage reusable VHDL sub-blocks to instantiate inside your top-level structural design.
+        Click <strong>Link Component</strong> to include it as a prerequisite during synthesis &amp; simulation.
+      </p>
+      <div class="comp-grid">
+        <div class="comp-list-col">
+          <div class="comp-list-title">Saved Sub-Blocks by Project</div>
+          <div class="comp-filter-box">
+            <input id="compFilter" class="comp-filter-input" placeholder="Search components &amp; projects..." spellcheck="false" autocomplete="off">
+          </div>
+          <div id="compItems" class="comp-items"></div>
+        </div>
+        <div class="comp-detail-col" id="compDetailCol">
+          <div class="comp-detail-box">
+            <h4 id="compDetailTitle">Component Details</h4>
+            <div id="compDetailPorts" class="dim sm-text">Select a component on the left to inspect its interface.</div>
+            <div style="margin-top:8px">
+              <button id="btnImportCompToProj" class="btn sm accent" disabled title="Copy this component's VHDL source file directly into current project folder and link it">
+                <svg viewBox="0 0 16 16" width="12" height="12"><path d="M1.5 2.5h4l1.5 2h7.5v8.5h-13z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 6v5M5.5 8.5L8 11l2.5-2.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Copy &amp; Add File to Current Project
+              </button>
+            </div>
+          </div>
+          <div class="comp-detail-box">
+            <h4>
+              <span>Component Declaration</span>
+              <button id="btnInsertDecl" class="btn sm" disabled title="Insert component declaration into architecture">Insert into Architecture</button>
+            </h4>
+            <pre id="compDeclSnippet" class="comp-snippet-pre">-- Select a component</pre>
+          </div>
+          <div class="comp-detail-box">
+            <h4>
+              <span>Port Map Instantiation</span>
+              <button id="btnInsertMap" class="btn sm primary" disabled title="Insert instance port map into architecture">Insert Port Map</button>
+            </h4>
+            <pre id="compMapSnippet" class="comp-snippet-pre">-- Select a component</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span id="compLinkedCount" class="dim sm-text">0 component(s) linked</span>
+      <button id="compDone" class="btn primary">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== project navigator context menu ==================== -->
+<div id="navContextMenu" class="context-menu hidden">
+  <div class="ctx-item" id="ctxSetTop" data-action="set_top">
+    <svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="8" cy="8" r="2.5" fill="currentColor"/></svg>
+    <span>Set as Top-Level Module</span>
+  </div>
+  <div class="ctx-item" id="ctxSetActiveTb" data-action="set_active_tb">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M2 12l3-8 3 5 2-3 4 6z" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+    <span>Set as Active Testbench</span>
+  </div>
+  <div class="ctx-item" id="ctxSimulateThis" data-action="simulate_this">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M3 2.5v11l10-5.5z" fill="currentColor"/></svg>
+    <span>Simulate This Testbench</span>
+  </div>
+  <div class="ctx-sep" id="ctxSep1"></div>
+  <div class="ctx-item" id="ctxGenTb" data-action="gen_tb">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span>Generate Testbench for Module...</span>
+  </div>
+  <div class="ctx-item" id="ctxCopyComponent" data-action="copy_component">
+    <svg viewBox="0 0 16 16" width="13" height="13"><rect x="4" y="4" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M3 11H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v1" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+    <span>Copy Component Declaration</span>
+  </div>
+  <div class="ctx-item" id="ctxCopyMap" data-action="copy_map">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M8 2l4 4-4 4M2 6h10" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Copy Port Map Instantiation</span>
+  </div>
+  <div class="ctx-sep" id="ctxSep2"></div>
+  <div class="ctx-item" id="ctxAddSource" data-action="add_source">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span>Add Source File...</span>
+  </div>
+  <div class="ctx-item" id="ctxRename" data-action="rename">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M12 2l2 2-9 9H3v-2z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>
+    <span>Rename File...</span>
+  </div>
+  <div class="ctx-item danger" id="ctxDelete" data-action="delete">
+    <svg viewBox="0 0 16 16" width="13" height="13"><path d="M3 4h10M6 4V2h4v2M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+    <span>Delete File</span>
+  </div>
+</div>
+
+<!-- ==================== add source wizard modal ==================== -->
+<div id="addSourceModal" class="overlay hidden">
+  <div class="modal source-modal">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="18" height="18"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Add Source File
+      </h2>
+      <button id="addSourceClose" class="icon-btn" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="source-type-selector">
+        <label class="source-type-option">
+          <input type="radio" name="sourceType" value="design" checked id="radioTypeDesign">
+          <div class="source-type-card">
+            <svg viewBox="0 0 16 16" width="20" height="20"><path d="M4 2 1.5 8 4 14M12 2l2.5 6L12 14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="source-type-title">VHDL Design Module</div>
+            <div class="source-type-sub">Hardware description block (entity &amp; architecture)</div>
+          </div>
+        </label>
+        <label class="source-type-option">
+          <input type="radio" name="sourceType" value="simulation" id="radioTypeSim">
+          <div class="source-type-card">
+            <svg viewBox="0 0 16 16" width="20" height="20"><path d="M2 12l3-8 3 5 2-3 4 6z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>
+            <div class="source-type-title">Simulation Testbench</div>
+            <div class="source-type-sub">Verification bench with stimulus &amp; clock generator</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Design Form -->
+      <div id="addDesignForm" class="add-form-section">
+        <div class="wiz-grid">
+          <label class="field">
+            <span>Entity / File Name</span>
+            <input id="addDesignEntity" placeholder="e.g. full_adder" spellcheck="false" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Architecture Name</span>
+            <input id="addDesignArch" value="Behavioral" spellcheck="false" autocomplete="off">
+          </label>
+        </div>
+
+        <div class="ports-block">
+          <div class="ports-head">
+            <span class="ports-title">Ports (entity interface)</span>
+            <button id="addDesignAddPort" class="btn sm">+ Add Port</button>
+          </div>
+          <div class="ports-cols">
+            <span>Name</span><span>Direction</span><span>Vector</span>
+            <span>Range (MSB : LSB)</span><span>Type</span><span></span>
+          </div>
+          <div id="addDesignPortRows"></div>
+        </div>
+      </div>
+
+      <!-- Testbench Form -->
+      <div id="addSimForm" class="add-form-section hidden">
+        <div class="wiz-grid">
+          <label class="field">
+            <span>Device Under Test (DUT)</span>
+            <select id="addSimDutSelect" class="dut-select"></select>
+          </label>
+          <label class="field">
+            <span>Testbench Entity Name</span>
+            <input id="addSimEntity" placeholder="tb_name" spellcheck="false" autocomplete="off">
+          </label>
+        </div>
+        <div class="wiz-grid">
+          <label class="field">
+            <span>Clock Period</span>
+            <input id="addSimClockPeriod" value="10 ns" spellcheck="false" autocomplete="off">
+          </label>
+          <label class="field" style="justify-content:center">
+            <span style="visibility:hidden">Options</span>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text)">
+              <input type="checkbox" id="addSimAutoActive" checked>
+              <span>Set as active testbench immediately</span>
+            </label>
+          </label>
+        </div>
+      </div>
+
+      <div class="wiz-preview">
+        <div class="preview-title">Generated Preview</div>
+        <pre id="addSourcePreview"></pre>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span id="addSourceError" class="wiz-error"></span>
+      <button id="addSourceCancel" class="btn">Cancel</button>
+      <button id="addSourceSubmit" class="btn primary">Add Source</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== rename file modal ==================== -->
+<div id="renameModal" class="overlay hidden">
+  <div class="modal small">
+    <div class="modal-head">
+      <h2>Rename Source File</h2>
+      <button id="renameClose" class="icon-btn" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span>File Name (with .vhd)</span>
+        <input id="renameInput" spellcheck="false" autocomplete="off">
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--text);cursor:pointer">
+        <input type="checkbox" id="renameUpdateEntity" checked>
+        <span>Also update entity name inside VHDL source code</span>
+      </label>
+      <div id="renameError" class="wiz-error" style="margin-top:8px"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="renameCancel" class="btn">Cancel</button>
+      <button id="renameSubmit" class="btn primary">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== comprehensive guide modal ==================== -->
+<div id="guideModal" class="overlay hidden">
+  <div class="modal guide-modal">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="18" height="18"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M6.8 6.5A1.5 1.5 0 0 1 9.5 7c0 .9-.9 1.2-.9 1.8M8 11.2h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        User Guide &amp; Lab Manual
+      </h2>
+      <button id="guideClose" class="icon-btn" type="button" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="guide-tabs">
+        <button type="button" class="guide-tab-btn active" data-tab="guideStructural">1. Structural Design</button>
+        <button type="button" class="guide-tab-btn" data-tab="guideWave">2. Waveform Analysis</button>
+        <button type="button" class="guide-tab-btn" data-tab="guideShortcuts">3. Shortcuts &amp; Tips</button>
+        <button type="button" class="guide-tab-btn" data-tab="guideAbout">4. About &amp; Copyright</button>
+      </div>
+
+      <!-- Tab 1: Structural VHDL -->
+      <div id="guideStructural" class="guide-tab-pane guide-content active-pane">
+        <h3>Structural VHDL Architecture &amp; Modular Hierarchy</h3>
+        <p>In digital systems engineering, complex hierarchical circuits (such as multi-bit adders, ALUs, and datapaths) are constructed by interconnecting reusable sub-blocks:</p>
+        <ol>
+          <li><strong>Modular Design:</strong> Create primitive blocks (e.g., <code>half_adder.vhd</code>, <code>full_adder.vhd</code>) first using the Project Navigator (+).</li>
+          <li><strong>Component Declaration:</strong> In your parent module's architecture declarative region (before <code>begin</code>), declare the component signature:
+            <div class="guide-code-box">component half_adder is
+  port (
+    a, b : in  std_logic;
+    sum, carry : out std_logic
+  );
+end component half_adder;</div>
+          </li>
+          <li><strong>Component Instantiation with Port Map:</strong> Inside the architecture body (after <code>begin</code>), instantiate instances connected via internal signals:
+            <div class="guide-code-box">HA1: half_adder
+  port map (
+    a     => in_a,
+    b     => in_b,
+    sum   => s1,
+    carry => c1
+  );</div>
+          </li>
+          <li><strong>One-Click Snippet Helpers:</strong> Right-click any file in the Project Navigator to immediately copy its <em>Component Declaration</em> or <em>Port Map Instantiation</em> directly to your clipboard.</li>
+          <li><strong>Automatic Multi-File Analysis:</strong> GHDL compiles all design sources in the project together, resolving structural bindings automatically at elaboration time.</li>
+        </ol>
+      </div>
+
+      <!-- Tab 2: Waveform Viewer -->
+      <div id="guideWave" class="guide-tab-pane guide-content hidden">
+        <h3>Advanced Waveform Analysis &amp; Timing Verification</h3>
+        <ul>
+          <li><strong>Zero Negative Time:</strong> The simulation timeline is strictly positive ($t \ge 0\text{ ns}$), eliminating negative time scroll artifacts.</li>
+          <li><strong>Dual Measurement Cursors:</strong> Left-click sets <strong>Cursor A</strong>; right-click or Shift+click sets <strong>Cursor B</strong>. The time delta ($\Delta t$) and frequency ($f = 1/\Delta t$) update in real-time in the status bar.</li>
+          <li><strong>Real-Time Value Inspector:</strong> Active signal values at the cursor position are displayed directly in the left signal label column in your choice of Hex, Decimal, or Binary.</li>
+          <li><strong>Clock Edge Snapping (|◀ and ▶|):</strong> Jump buttons snap the cursor directly to the previous or next signal transition for rapid timing margin measurements.</li>
+          <li><strong>Zebra Striping:</strong> Alternating row shades ensure effortless visual tracking across dense signal lists.</li>
+          <li><strong>High-Resolution SVG &amp; PNG Export:</strong> Dedicated margin separation prevents signal names and waveform traces from ever overlapping in exports.</li>
+        </ul>
+      </div>
+
+      <!-- Tab 3: Shortcuts & Tips -->
+      <div id="guideShortcuts" class="guide-tab-pane guide-content hidden">
+        <h3>Keyboard Shortcuts &amp; Best Practices</h3>
+        <table class="shortcuts-table">
+          <thead>
+            <tr><th>Action</th><th>Shortcut</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Simulate Behavioral Model</td><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd> or <kbd>F5</kbd></td><td>Elaborate active testbench and render waveforms</td></tr>
+            <tr><td>Check Syntax</td><td><kbd>F7</kbd> or <kbd>Ctrl</kbd> + <kbd>B</kbd></td><td>Compile all project sources with GHDL</td></tr>
+            <tr><td>Save Project</td><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save all files to project storage</td></tr>
+            <tr><td>Format VHDL Code</td><td><kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd></td><td>Standardize indentation &amp; block structure</td></tr>
+            <tr><td>Toggle Line Comment</td><td><kbd>Ctrl</kbd> + <kbd>/</kbd></td><td>Toggle <code>-- comment</code></td></tr>
+            <tr><td>Distraction-Free Zen Mode</td><td><kbd>Esc</kbd> / Zen Button</td><td>Fullscreen editor mode</td></tr>
+            <tr><td>Waveform Zoom</td><td><kbd>Mouse Wheel</kbd> / +/- buttons</td><td>Zoom centered at cursor</td></tr>
+          </tbody>
+        </table>
+        <h4>Preventing VHDL Integer Range Failures:</h4>
+        <p class="dim sm-text">VHDL integer ranges (such as <code>range 0 to 15</code>) do not automatically wrap around. To avoid a <code>bound check failure</code> during simulation, always include an explicit reset condition: <code>if count >= 15 then count <= 0; else count <= count + 1; end if;</code></p>
+      </div>
+
+      <!-- Tab 4: About & Copyright -->
+      <div id="guideAbout" class="guide-tab-pane guide-content hidden">
+        <h3>About &amp; Licensing Information</h3>
+        <p><strong>VHDL Laboratory (Digital Systems Laboratory 2) &mdash; VHDL-2008 Offline EDA Environment</strong></p>
+        <p>An offline desktop-grade EDA suite designed for digital systems design, structural component modeling, and simulation verification.</p>
+        <div class="guide-code-box">Copyright (c) 2026 S.M.M.Mahmoodi
+Software Architecture &amp; Project Lead: S.M.M.Mahmoodi
+Toolchain: GHDL 6.0.0 (mcode ucrt64), Python 3 / Flask, CodeMirror, WaveDrom engine</div>
+        <p class="sm-text dim">Created for laboratory and academic environments with zero external network dependencies.</p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="dim sm-text">&copy; 2026 S.M.M.Mahmoodi</span>
+      <button id="guideDone" type="button" class="btn primary">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== VHDL Templates Modal ==================== -->
+<div id="templateModal" class="overlay hidden">
+  <div class="modal template-modal">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="18" height="18"><path d="M2 3h12M2 7h8M2 11h10M2 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        VHDL Code Templates &amp; Snippets
+      </h2>
+      <button id="templateClose" class="icon-btn" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="template-layout">
+        <div class="template-sidebar">
+          <div class="template-group-title">Hardware Architecture &amp; Processes</div>
+          <button class="template-btn active" data-tpl="sync_proc">Synchronous Process (clk, rst)</button>
+          <button class="template-btn" data-tpl="async_proc">Async Reset Process</button>
+          <button class="template-btn" data-tpl="comb_proc">Combinational Process (all)</button>
+          <button class="template-btn" data-tpl="fsm">2-Process FSM (Moore / Mealy)</button>
+          <button class="template-btn" data-tpl="mux4">4-to-1 Multiplexer</button>
+          <button class="template-btn" data-tpl="dff">D-Flip-Flop with Enable</button>
+          <button class="template-btn" data-tpl="counter">Up/Down Counter (Protected)</button>
+
+          <div class="template-group-title" style="margin-top:12px">Testbench &amp; Verification</div>
+          <button class="template-btn" data-tpl="clk_gen">TB Clock Generator</button>
+          <button class="template-btn" data-tpl="stim_pulse">TB Stimulus &amp; Reset</button>
+
+          <div class="template-group-title" style="margin-top:12px">Structural Hierarchy</div>
+          <button class="template-btn" data-tpl="comp_decl">Component Skeleton</button>
+        </div>
+        <div class="template-preview-pane">
+          <div class="template-info">
+            <h4 id="templateTitle">Synchronous Process (clk, rst)</h4>
+            <p id="templateDesc" class="dim sm-text">Clocked process with synchronous reset for sequential logic.</p>
+          </div>
+          <pre id="templateCode" class="template-code-box"></pre>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="dim sm-text">Selected template will be inserted at the current editor cursor.</span>
+      <button id="templateCancel" class="btn">Cancel</button>
+      <button id="templateInsert" class="btn primary">Insert into Editor</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Export as RAR modal ==================== -->
+<div id="rarModal" class="overlay hidden">
+  <div class="modal sm">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="16" height="16"><path d="M1.5 2.5h4l1.5 2h7.5v8.5h-13z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 8h2M7 10h2M7 12h2" stroke="currentColor" stroke-width="1.5"/></svg>
+        Export Project as RAR Archive
+      </h2>
+      <button id="rarClose" class="icon-btn" title="Close (Esc)">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="dim sm-text" style="margin-top:0">
+        Create a WinRAR archive containing all project source files (<code>.vhd</code>), testbenches, metadata, and an auto-simulation script.
+      </p>
+      <div class="form-row">
+        <label for="rarFilename">Archive Filename</label>
+        <input id="rarFilename" class="ctl-input" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="form-row" style="margin-top:10px">
+        <label for="rarCustomPath">Custom Save Path on Disk <span class="dim">(optional, e.g. D:\Labs\ or Desktop)</span></label>
+        <input id="rarCustomPath" class="ctl-input" placeholder="Leave empty for browser download" spellcheck="false" autocomplete="off">
+      </div>
+      <div id="rarStatus" class="dim sm-text" style="margin-top:8px"></div>
+      <div id="rarError" class="err-text" style="margin-top:4px"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="rarCancel" class="btn ghost">Cancel</button>
+      <button id="btnRarSaveDisk" class="btn accent" title="Save directly to custom path on disk">Save to Path on Disk</button>
+      <button id="btnRarDownload" class="btn primary" title="Download RAR file via browser">Download .RAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== In-App Update Patch Modal ==================== -->
+<div id="updateModal" class="overlay hidden">
+  <div class="modal sm update-modal">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="18" height="18"><path d="M8 2v9M4 8l4 4 4-4M2 14h12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Install Update Patch
+      </h2>
+      <button id="updateClose" class="icon-btn" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="dim sm-text" style="margin-top:0">
+        Apply an official update patch (<code>.zip</code>) provided by your instructor to upgrade the IDE without re-downloading the whole package.
+      </p>
+      <div class="update-dropzone" id="updateDropzone">
+        <input type="file" id="updateFileInput" accept=".zip" style="display:none">
+        <svg viewBox="0 0 24 24" width="36" height="36" class="update-icon"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="drop-text" id="updateDropText">Drag &amp; drop <code>.zip</code> patch file here, or <span class="drop-link">browse</span></div>
+        <div class="drop-filename hidden" id="updateSelectedFile"></div>
+      </div>
+      <div class="update-notice">
+        <svg viewBox="0 0 16 16" width="14" height="14" style="color:var(--green);flex-shrink:0"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m5 8 2 2 4-4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><strong>100% Safe:</strong> Your personal projects in <code>projects/</code> are strictly protected and will never be overwritten or deleted.</span>
+      </div>
+      <div id="updateStatus" class="update-status hidden"></div>
+      <div id="updateError" class="err-text" style="margin-top:6px"></div>
+    </div>
+    <div class="modal-foot">
+      <button id="updateCancel" class="btn ghost">Cancel</button>
+      <button id="btnApplyUpdate" class="btn primary" disabled>Apply Update &amp; Reload</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="assets/js/waveviewer.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
