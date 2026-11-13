@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 *.tmp
 
-# GHDL binary distribution (excluded to keep repo size minimal ~1MB; bundled in releases)
+# GHDL binary distribution (excluded to keep repo size minimal ~1MB; bundled in offline distribution packages)
 ghdl-mcode-*/
 *.cf
 *.o

@@ -1354,10 +1354,12 @@ def t27(client):
     assert r_vcd.status_code == 200
     assert "attachment; filename=wave.vcd" in r_vcd.headers.get("Content-Disposition", "")
     assert "$timescale" in r_vcd.get_data(as_text=True)
+    r_vcd.close()
 
     r_vcd_named = client.get("/api/simulation/vcd?name=tb_counter.vcd")
     assert r_vcd_named.status_code == 200
     assert "attachment; filename=tb_counter.vcd" in r_vcd_named.headers.get("Content-Disposition", "")
+    r_vcd_named.close()
 
     # 5. Security check: direct access to /workspace/wave.vcd must return 404 (T8 protection)
     r_sec = client.get("/workspace/wave.vcd")
@@ -1434,6 +1436,16 @@ def main():
     else:
         print(f" RESULT: {passed}/{total} tests passed" + (" -- 100% VERIFIED"
               if not failed else ""))
+
+    # Clean up scratchpad artifacts so workspace remains tidy with only .gitkeep
+    try:
+        import gc
+        gc.collect()
+        from app import reset_workspace
+        reset_workspace()
+    except Exception:
+        pass
+
     return 0 if not failed else 1
 
 

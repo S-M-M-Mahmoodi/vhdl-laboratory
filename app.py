@@ -28,7 +28,7 @@ Supports multi-file structural VHDL designs with automatic component dependency
 compilation, entity port mapping, and snippet generation.
 
 All paths are derived from this file's location, so the project folder can live
-at F:\VHDL (Windows) or anywhere else. GHDL is expected on PATH; set GHDL_BIN
+at any directory on Windows, Linux, or macOS. GHDL is expected on PATH; set GHDL_BIN
 to an explicit executable path if needed (run_webapp.bat does this for you).
 
 Launch:  python app.py      ->  http://127.0.0.1:5000
@@ -300,8 +300,19 @@ def parse_ghdl_output(text: str):
 # ---------------------------------------------------------------------------
 def reset_workspace() -> None:
     """Recreate the scratchpad so every run starts from a clean work library."""
-    shutil.rmtree(WORKSPACE_DIR, ignore_errors=True)
-    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+    if WORKSPACE_DIR.exists():
+        for item in WORKSPACE_DIR.iterdir():
+            if item.name == ".gitkeep":
+                continue
+            try:
+                if item.is_file() or item.is_symlink():
+                    item.unlink(missing_ok=True)
+                elif item.is_dir():
+                    shutil.rmtree(item, ignore_errors=True)
+            except Exception:
+                pass
+    else:
+        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
     (WORKSPACE_DIR / ".gitkeep").touch(exist_ok=True)
 
 

@@ -4,7 +4,7 @@ title Digital Systems Laboratory 2 - VHDL Simulator
 
 rem =====================================================================
 rem  Digital Systems Laboratory 2 - one-click launcher
-rem  Starts the Flask backend with GHDL from F:\VHDL\ghdl-mcode-6.0.0-ucrt64
+rem  Starts the Flask backend with GHDL from %APP_DIR%\ghdl-mcode-6.0.0-ucrt64
 rem  and opens the default browser automatically.
 rem =====================================================================
 

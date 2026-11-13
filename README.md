@@ -163,7 +163,7 @@ python test_suite.py
 ```text
 ========================================================================
  Digital Systems Laboratory 2 -- end-to-end test suite
- project root : F:\VHDL
+ project root : /path/to/vhdl-laboratory
 ========================================================================
   [PASS] T1 check_syntax catches invalid VHDL with exact line number
   [PASS] T2 check_syntax passes a valid design with custom filenames
