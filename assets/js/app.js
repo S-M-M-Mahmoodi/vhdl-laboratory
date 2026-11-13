@@ -55,6 +55,7 @@ async function copyToClipboard(text, successMsg) {
  * Code Generation & Port Parsing
  * ------------------------------------------------------------------ */
 function portType(p) {
+  if (p.rawType) return p.rawType;
   return p.vector
     ? `std_logic_vector(${p.msb} downto ${p.lsb})`
     : "std_logic";
@@ -103,38 +104,102 @@ function genDesignSkeleton(cfg) {
   return L.join("\n") + "\n";
 }
 
-function parseEntityPorts(vhdlCode) {
-  const m = /\bentity\s+[A-Za-z][A-Za-z0-9_]*\s+is[\s\S]*?\bport\s*\(([\s\S]*?)\)\s*;/i
-    .exec(vhdlCode || "");
-  if (!m) return [];
-  const cleaned = m[1]
-    .replace(/--[^\n]*/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return [];
+function parseEntityPorts(vhdlCode, targetEntity) {
+  if (!vhdlCode) return [];
+  // 1. Strip comments
+  const noComments = vhdlCode.replace(/--[^\n]*/g, " ");
+
+  // 2. Find target entity declaration (or first entity if targetEntity not provided)
+  let entityRegex;
+  if (targetEntity && typeof targetEntity === "string") {
+    entityRegex = new RegExp(`\\bentity\\s+${targetEntity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+is\\b`, "i");
+  } else {
+    entityRegex = /\bentity\s+([A-Za-z][A-Za-z0-9_]*)\s+is\b/i;
+  }
+  const entityMatch = entityRegex.exec(noComments);
+  if (!entityMatch) return [];
+
+  const afterEntityIs = noComments.slice(entityMatch.index + entityMatch[0].length);
+
+  // Stop before the matching 'end' of entity so we don't accidentally leak into architecture
+  const endMatch = /\bend\s+(?:entity\b|\b[A-Za-z][A-Za-z0-9_]*\b|\s*;)/i.exec(afterEntityIs);
+  const entityBody = endMatch ? afterEntityIs.slice(0, endMatch.index) : afterEntityIs;
+
+  // 3. Find 'port (' keyword
+  const portMatch = /\bport\s*\(/i.exec(entityBody);
+  if (!portMatch) return [];
+
+  // 4. Parenthesis-aware extraction: balance '(' and ')' to find the true closing paren of 'port (...)'
+  const startIndex = portMatch.index + portMatch[0].length;
+  let depth = 1;
+  let endIndex = -1;
+
+  for (let i = startIndex; i < entityBody.length; i++) {
+    const ch = entityBody[i];
+    if (ch === "(") {
+      depth++;
+    } else if (ch === ")") {
+      depth--;
+      if (depth === 0) {
+        endIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (endIndex === -1) return [];
+
+  const portBlock = entityBody.slice(startIndex, endIndex).trim();
+  if (!portBlock) return [];
+
+  // 5. Parse port declarations separated by ';'
   const ports = [];
-  for (const chunk of cleaned.split(";")) {
-    const pm = /^\s*([A-Za-z][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z][A-Za-z0-9_]*)*)\s*:\s*(in|out|inout|buffer)\s+(.+)$/i
-      .exec(chunk.trim());
+  const chunks = portBlock.split(";");
+
+  for (const rawChunk of chunks) {
+    const chunk = rawChunk.trim();
+    if (!chunk) continue;
+
+    // Pattern: name1 [, name2 ...] : (in|out|inout|buffer) type [:= default]
+    const pm = /^\s*([A-Za-z][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z][A-Za-z0-9_]*)*)\s*:\s*(in|out|inout|buffer)\s+([\s\S]+)$/i
+      .exec(chunk);
     if (!pm) continue;
-    const names = pm[1].split(",").map(s => s.trim());
+
+    const names = pm[1].split(",").map(s => s.trim()).filter(Boolean);
     const dir = pm[2].toLowerCase();
-    const type = pm[3].trim();
+    let type = pm[3].trim().replace(/\s+/g, " ");
+
+    // Strip default value assignment if any (e.g. := '0')
+    const defIdx = type.indexOf(":=");
+    if (defIdx !== -1) {
+      type = type.slice(0, defIdx).trim();
+    }
+
     const vector = /std_logic_vector/i.test(type);
     let msb = 7, lsb = 0;
     const rm = /\(\s*(\d+)\s+(?:downto|to)\s+(\d+)\s*\)/i.exec(type);
-    if (rm) { msb = parseInt(rm[1], 10); lsb = parseInt(rm[2], 10); }
-    names.forEach(name => ports.push({ name, dir, vector, msb, lsb }));
+    if (rm) {
+      msb = parseInt(rm[1], 10);
+      lsb = parseInt(rm[2], 10);
+    }
+
+    for (const name of names) {
+      ports.push({ name, dir, vector, msb, lsb, rawType: type });
+    }
   }
+
   return ports;
 }
 
 function genTestbenchSkeleton(dutEntity, dutCode, clockPeriodStr, cfg = {}) {
   const tbEntity = `tb_${dutEntity}`;
-  let ports = parseEntityPorts(dutCode);
+  let ports = parseEntityPorts(dutCode, dutEntity);
   const maps = ports.map(p => `      ${p.name.padEnd(10)} => ${p.name}`);
-  const sigs = ports.map(p =>
-    `  signal ${p.name.padEnd(10)} : ${portType(p)} := ${p.vector ? `(others => '0')` : "'0'"};`);
+  const sigs = ports.map(p => {
+    const isVec = p.vector || /vector|signed|unsigned/i.test(p.rawType || "");
+    const initVal = isVec ? "(others => '0')" : "'0'";
+    return `  signal ${p.name.padEnd(10)} : ${portType(p)} := ${initVal};`;
+  });
   const clkPeriod = clockPeriodStr || "10 ns";
   const author = (cfg.author || state.project?.author || "").trim() || "(Unspecified)";
   const dateStr = cfg.date || cfg.created || state.project?.created || new Date().toISOString().slice(0, 10);
@@ -181,14 +246,15 @@ function genTestbenchSkeleton(dutEntity, dutCode, clockPeriodStr, cfg = {}) {
   }
   L.push("");
 
-  const hasClk = ports.some(p => /clk|clock/i.test(p.name) && p.dir === "in");
-  if (hasClk) {
+  const clkPort = ports.find(p => /clk|clock/i.test(p.name) && p.dir === "in");
+  if (clkPort) {
+    const clkName = clkPort.name;
     L.push("  -- clock generator process");
     L.push("  clk_gen : process");
     L.push("  begin");
-    L.push("    clk <= '0';");
+    L.push(`    ${clkName} <= '0';`);
     L.push("    wait for CLK_PERIOD / 2;");
-    L.push("    clk <= '1';");
+    L.push(`    ${clkName} <= '1';`);
     L.push("    wait for CLK_PERIOD / 2;");
     L.push("  end process clk_gen;");
     L.push("");
@@ -197,10 +263,14 @@ function genTestbenchSkeleton(dutEntity, dutCode, clockPeriodStr, cfg = {}) {
   L.push("  -- stimulus process: drive input vectors");
   L.push("  stim_proc : process");
   L.push("  begin");
-  const ins = ports.filter(p => p.dir === "in" && !/clk|clock/i.test(p.name));
+  const ins = ports.filter(p => p.dir === "in" && p !== clkPort);
   if (ins.length) {
     L.push("    -- initial stimulus state");
-    ins.forEach(p => L.push(`    ${p.name} <= ${p.vector ? `(others => '0')` : "'0'"};`));
+    ins.forEach(p => {
+      const isVec = p.vector || /vector|signed|unsigned/i.test(p.rawType || "");
+      const initVal = isVec ? "(others => '0')" : "'0'";
+      L.push(`    ${p.name} <= ${initVal};`);
+    });
     L.push("    wait for 20 ns;");
     L.push("");
   }

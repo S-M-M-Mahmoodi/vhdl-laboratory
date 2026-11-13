@@ -1366,6 +1366,58 @@ def t27(client):
     assert r_sec.status_code == 404
 
 
+@check("T28 Parenthesis-aware entity port parser preserves all scalar and vector ports")
+def t28(client):
+    from app import _parse_entity_ports_vhdl
+
+    # 1. Exact entity from user report: vector port followed by additional scalar ports
+    code_user = """
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity dfgbdf is
+  port (
+    clk      : in  std_logic;
+    data_out : out std_logic_vector(7 downto 0);
+    dfbd     : in  std_logic;
+    gdg      : out std_logic
+  );
+end entity dfgbdf;
+"""
+    ports = _parse_entity_ports_vhdl(code_user)
+    port_names = [p["name"] for p in ports]
+    assert port_names == ["clk", "data_out", "dfbd", "gdg"], f"Expected 4 ports but got {port_names}"
+    assert ports[1]["vector"] is True and ports[1]["msb"] == 7 and ports[1]["lsb"] == 0
+
+    # 2. Entity with generic clause preceding port clause and inline comments
+    code_generic = """
+entity fifo is
+  generic (
+    DATA_WIDTH : integer := 16;
+    ADDR_WIDTH : integer := 4
+  );
+  port (
+    clk   : in  std_logic; -- System clock
+    rst_n : in  std_logic; -- Active-low reset
+    din   : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
+    we    : in  std_logic;
+    dout  : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+    empty : out std_logic;
+    full  : out std_logic
+  );
+end entity fifo;
+"""
+    ports_fifo = _parse_entity_ports_vhdl(code_generic, "fifo")
+    names_fifo = [p["name"] for p in ports_fifo]
+    assert names_fifo == ["clk", "rst_n", "din", "we", "dout", "empty", "full"], f"FIFO ports incomplete: {names_fifo}"
+
+    # 3. Verify assets/js/app.js contains parenthesis-aware parsing
+    js = client.get("/assets/js/app.js").get_data(as_text=True)
+    assert "parseEntityPorts" in js
+    assert "depth++" in js and "depth--" in js, "app.js missing parenthesis-aware balance counter"
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------

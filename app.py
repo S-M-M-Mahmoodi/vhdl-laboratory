@@ -983,23 +983,69 @@ def _project_path(name_or_folder: str) -> Path | None:
     return pdir / "project.json"
 
 
-def _parse_entity_ports_vhdl(code: str) -> list[dict]:
-    """Parse VHDL port definitions from source code as fallback."""
+def _parse_entity_ports_vhdl(code: str, target_entity: str | None = None) -> list[dict]:
+    """Parse VHDL port definitions from source code using parenthesis-aware extraction."""
     if not code:
         return []
-    m = re.search(r"\bentity\s+[A-Za-z][A-Za-z0-9_]*\s+is[\s\S]*?\bport\s*\(([\s\S]*?)\)\s*;", code, re.IGNORECASE)
-    if not m:
+    # 1. Strip comments
+    no_comments = re.sub(r"--[^\n]*", " ", code)
+
+    # 2. Find entity
+    if target_entity:
+        pattern = rf"\bentity\s+{re.escape(target_entity)}\s+is\b"
+    else:
+        pattern = r"\bentity\s+([A-Za-z][A-Za-z0-9_]*)\s+is\b"
+    entity_m = re.search(pattern, no_comments, re.IGNORECASE)
+    if not entity_m:
         return []
-    cleaned = re.sub(r"--[^\n]*", " ", m.group(1))
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    after_entity = no_comments[entity_m.end():]
+    end_m = re.search(r"\bend\s+(?:entity\b|\b[A-Za-z][A-Za-z0-9_]*\b|\s*;)", after_entity, re.IGNORECASE)
+    entity_body = after_entity[:end_m.start()] if end_m else after_entity
+
+    # 3. Find port (
+    port_m = re.search(r"\bport\s*\(", entity_body, re.IGNORECASE)
+    if not port_m:
+        return []
+
+    # 4. Balanced parenthesis extraction
+    start_idx = port_m.end()
+    depth = 1
+    end_idx = -1
+    for i in range(start_idx, len(entity_body)):
+        ch = entity_body[i]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                end_idx = i
+                break
+
+    if end_idx == -1:
+        return []
+
+    port_block = entity_body[start_idx:end_idx].strip()
+    if not port_block:
+        return []
+
     ports = []
-    for chunk in cleaned.split(";"):
-        pm = re.match(r"^\s*([A-Za-z][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z][A-Za-z0-9_]*)*)\s*:\s*(in|out|inout|buffer)\s+(.+)$", chunk.strip(), re.IGNORECASE)
+    for raw_chunk in port_block.split(";"):
+        chunk = raw_chunk.strip()
+        if not chunk:
+            continue
+        pm = re.match(
+            r"^\s*([A-Za-z][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z][A-Za-z0-9_]*)*)\s*:\s*(in|out|inout|buffer)\s+([\s\S]+)$",
+            chunk,
+            re.IGNORECASE,
+        )
         if not pm:
             continue
-        names = [s.strip() for s in pm.group(1).split(",")]
+        names = [s.strip() for s in pm.group(1).split(",") if s.strip()]
         pdir = pm.group(2).lower()
-        ptype = pm.group(3).strip()
+        ptype = re.sub(r"\s+", " ", pm.group(3).strip())
+        if ":=" in ptype:
+            ptype = ptype.split(":=")[0].strip()
         vector = "std_logic_vector" in ptype.lower()
         msb, lsb = 7, 0
         rm = re.search(r"\(\s*(\d+)\s+(?:downto|to)\s+(\d+)\s*\)", ptype, re.IGNORECASE)
@@ -1009,8 +1055,7 @@ def _parse_entity_ports_vhdl(code: str) -> list[dict]:
             except ValueError:
                 pass
         for name in names:
-            if name:
-                ports.append({"name": name, "dir": pdir, "vector": vector, "msb": msb, "lsb": lsb})
+            ports.append({"name": name, "dir": pdir, "vector": vector, "msb": msb, "lsb": lsb, "rawType": ptype})
     return ports
 
 
