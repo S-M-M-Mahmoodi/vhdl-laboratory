@@ -302,6 +302,7 @@ def reset_workspace() -> None:
     """Recreate the scratchpad so every run starts from a clean work library."""
     shutil.rmtree(WORKSPACE_DIR, ignore_errors=True)
     WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+    (WORKSPACE_DIR / ".gitkeep").touch(exist_ok=True)
 
 
 def write_source(filename: str, code: str) -> None:

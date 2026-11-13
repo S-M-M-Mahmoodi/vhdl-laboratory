@@ -5,7 +5,7 @@
 
 A desktop-grade, offline web-based Electronic Design Automation (EDA) suite and behavioral simulator for digital systems, computer architecture, and hardware description language (HDL) education. Fully compliant with **IEEE VHDL-2008**, replicating the core design workflows of industry-standard tools like Xilinx Vivado, Xilinx ISE Project Navigator, and ModelSim.
 
-Powered by a bundled **GHDL** compiler, interactive **CodeMirror** multi-tab editor, a professional **Project Navigator (Design & Simulation Sources)** tree, and a high-precision vector **Waveform Viewer**.
+Powered by the open-source **GHDL** compiler (bundled in offline release packages or installed via system PATH), interactive **CodeMirror** multi-tab editor, a professional **Project Navigator (Design & Simulation Sources)** tree, and a high-precision vector **Waveform Viewer**.
 
 ---
 
@@ -19,7 +19,7 @@ vhdl-laboratory/
   run_webapp.sh             <-- One-click Linux & macOS launcher (./run_webapp.sh)
   app.py                    <-- Flask EDA backend (GHDL controller, multi-file compilation, VCD parser)
   index.html                <-- Responsive IDE interface with Project Navigator & Waveform Viewer
-  test_suite.py             <-- End-to-end automated test suite (27/27 verified test cases)
+  test_suite.py             <-- End-to-end automated test suite (27 verified test cases; skips T18 gracefully if WinRAR is absent)
   assets\
     css\app.css             <-- Dark theme stylesheets (VS Code Dark+, Vivado Dark, Monokai Pro)
     js\app.js               <-- Application logic, Project Navigator controller, dynamic multi-tab manager
@@ -81,9 +81,9 @@ Like modern FPGA/ASIC EDA suites (Vivado / ISE), the left sidebar provides hiera
 - **IEEE-1364 VCD Export & GTKWave Bridge**: One-click download of raw simulation VCD traces (`tb_entity.vcd`) directly from the Waveform Viewer toolbar or menubar (`Simulation -> Download Waveform (.vcd)...`). Enables students to inspect simulations in GTKWave (industry-standard EDA tool) or attach full traces to laboratory reports.
 
 ### 4. 100% Offline Standalone Operation
-- Zero external internet access or CDN dependencies.
-- Local web assets, bundled fonts (Inter & JetBrains Mono), and bundled GHDL 6.0.0 compiler.
-- Portable: Runs directly from any drive (e.g. `F:\VHDL`) on Windows 10/11.
+- Zero external internet access or CDN dependencies during simulation and IDE operation.
+- Once initial dependencies are installed (`pip install -r requirements.txt`), all editor assets, vector fonts (Inter & JetBrains Mono), simulation engines, and waveform renderers operate completely air-gapped without network connectivity.
+- Portable: Runs directly from any folder or USB drive across Windows, Linux, and macOS.
 
 ---
 
@@ -196,9 +196,13 @@ python test_suite.py
  RESULT: 27/27 tests passed -- 100% VERIFIED
 ```
 
+> **Note on Test Portability:** Test `T18` verifies RAR archive creation and export. On host systems where WinRAR (`Rar.exe` or `rar`) is not installed (such as Linux/macOS environments), `T18` is gracefully skipped (`[SKIP]`) without breaking the test run.
+
 ---
 
 ## License & Attribution
+
+This project is licensed under the **MIT License**:
 
 ```text
 Copyright (c) 2026 S.M.M.Mahmoodi
@@ -221,3 +225,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+For licenses and attributions of third-party open-source components (CodeMirror, Inter Font, JetBrains Mono Font, and GHDL), see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

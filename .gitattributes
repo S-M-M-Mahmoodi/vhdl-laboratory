@@ -1,0 +1,25 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Scripts requiring specific line endings
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh text eol=lf
+
+# Code, markup, data and documentation files normalized to LF
+*.py text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.vhd text eol=lf
+
+# Binary assets (prevent corruption from line-ending conversion)
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.png binary
+*.jpg binary
+*.ico binary
