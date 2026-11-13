@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-Digital Systems Laboratory 2 -- Offline VHDL Simulator & EDA Environment
+VHDL Laboratory -- Offline VHDL Simulator & EDA Environment
 ========================================================================
 Copyright (c) 2026 S.M.M.Mahmoodi
 Author & Lead Maintainer: S.M.M.Mahmoodi
@@ -637,7 +637,7 @@ def static_assets(filename: str):
 def health():
     return jsonify({
         "ok": True,
-        "app": "Digital Systems Laboratory 2",
+        "app": "VHDL Laboratory",
         "name": "VHDL Laboratory",
         "version": APP_VERSION,
         "boot_id": SERVER_BOOT_ID,
@@ -1576,8 +1576,8 @@ def projects_export_zip():
         zf.writestr("run_simulation.bat", compile_bat)
 
         readme_txt = (
-            f"Digital Systems Laboratory 2 - VHDL Project\n"
-            f"===========================================\n"
+            f"VHDL Laboratory - VHDL Project\n"
+            f"==============================\n"
             f"Project      : {project.get('name', entity)}\n"
             f"Folder       : {project.get('folder', entity)}\n"
             f"Author       : {project.get('author') or '(Unspecified)'}\n"
@@ -1678,8 +1678,8 @@ def projects_export_rar():
 
         # 4. Write README.txt
         readme_txt = (
-            f"Digital Systems Laboratory 2 - VHDL Project Archive (RAR)\n"
-            f"==========================================================\n"
+            f"VHDL Laboratory - VHDL Project Archive (RAR)\n"
+            f"============================================\n"
             f"Project      : {proj_name}\n"
             f"Folder       : {project.get('folder', entity)}\n"
             f"Author       : {project.get('author') or '(Unspecified)'}\n"
@@ -2330,7 +2330,7 @@ if __name__ == "__main__":
         os.environ["PORT"] = str(port)
 
     print("=" * 64)
-    print(" Digital Systems Laboratory 2  (offline VHDL simulator)")
+    print(" VHDL Laboratory  (offline VHDL simulator)")
     print(f"   project root : {BASE_DIR}")
     print(f"   workspace    : {WORKSPACE_DIR}")
     print(f"   projects     : {PROJECTS_DIR}")

@@ -1,5 +1,5 @@
 /* ==========================================================================
- * Digital Systems Laboratory 2 — Waveform Viewer
+ * VHDL Laboratory — Waveform Viewer
  * ---------------------------------------------------------------------------
  * A self-contained SVG timing-diagram renderer fed by the raw transition
  * data produced by the backend (signal -> [[t_ns, value], ...]).
@@ -1234,7 +1234,7 @@
     const title = svgEl("text", {
       x: 14, y: 17, fill: TEXT, "font-size": 11.5, "font-weight": 700,
     });
-    title.textContent = "Digital Systems Lab 2";
+    title.textContent = "VHDL Laboratory";
     out.appendChild(title);
 
     // Time axis inside plot area (offset by NAME_W)
@@ -1312,14 +1312,14 @@
     const footText = svgEl("text", {
       x: 14, y: H - 10, fill: MUTED, "font-size": 9,
     });
-    footText.textContent = "© 2026 S.M.M.Mahmoodi · Timing Diagram Export · Digital Systems Laboratory 2";
+    footText.textContent = "© 2026 S.M.M.Mahmoodi · Timing Diagram Export · VHDL Laboratory";
     out.appendChild(footText);
 
     // restore interactive state
     V.paneW = saveW; V.t0 = saveT0; V.t1 = saveT1;
 
     const header = `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<!-- Digital Systems Laboratory 2 - timing diagram export by S.M.M.Mahmoodi -->\n`;
+      `<!-- VHDL Laboratory - timing diagram export by S.M.M.Mahmoodi -->\n`;
     return header + new XMLSerializer().serializeToString(out);
   }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =====================================================================
-#  Digital Systems Laboratory 2 - One-Click Launcher (Linux / macOS)
+#  VHDL Laboratory - One-Click Launcher (Linux / macOS)
 # =====================================================================
 
 set -e

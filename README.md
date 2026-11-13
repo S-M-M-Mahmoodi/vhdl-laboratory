@@ -1,9 +1,9 @@
-# Digital Systems Laboratory 2 — Offline VHDL Simulator & EDA Environment
+# VHDL Laboratory — Offline VHDL Simulator & EDA Environment
 > **Author & Software Architect:** S.M.M.Mahmoodi  
 > **Copyright:** &copy; 2026 S.M.M.Mahmoodi  
 > **License:** MIT License  
 
-A desktop-grade, offline web-based Electronic Design Automation (EDA) suite and behavioral simulator for digital systems, computer architecture, and hardware description language (HDL) education. Fully compliant with **IEEE VHDL-2008**, replicating the core design workflows of industry-standard tools like Xilinx Vivado, Xilinx ISE Project Navigator, and ModelSim.
+A desktop-grade, offline web-based Electronic Design Automation (EDA) suite and behavioral simulator for digital logic design, computer architecture, and hardware description language (HDL) education. Fully compliant with **IEEE VHDL-2008**, replicating the core design workflows of industry-standard tools like Xilinx Vivado, Xilinx ISE Project Navigator, and ModelSim.
 
 Powered by the open-source **GHDL** compiler (bundled in offline release packages or installed via system PATH), interactive **CodeMirror** multi-tab editor, a professional **Project Navigator (Design & Simulation Sources)** tree, and a high-precision vector **Waveform Viewer**.
 
@@ -162,7 +162,7 @@ python test_suite.py
 ### Verified Test Results:
 ```text
 ========================================================================
- Digital Systems Laboratory 2 -- end-to-end test suite
+ VHDL Laboratory -- end-to-end test suite
  project root : /path/to/vhdl-laboratory
 ========================================================================
   [PASS] T1 check_syntax catches invalid VHDL with exact line number

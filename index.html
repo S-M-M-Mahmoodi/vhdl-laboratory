@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VHDL Laboratory (Digital Systems Laboratory 2)</title>
+<title>VHDL Laboratory</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='12' y='12' width='24' height='24' rx='4' fill='%230d2818' stroke='%232ee66b' stroke-width='2.5'/%3E%3Cpath d='M17 24h4l2-6 4 12 2-6h2' stroke='%232ee66b' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/vendor/codemirror.min.css">
 <link rel="stylesheet" href="assets/vendor/dracula.min.css">
@@ -38,7 +38,7 @@
   <div class="welcome-card">
     <svg class="welcome-logo" viewBox="0 0 48 48" width="72" height="72"><use href="#logo-mark"/></svg>
     <h1>VHDL Laboratory</h1>
-    <p class="welcome-sub">Digital Systems Laboratory 2 &middot; Offline VHDL design &amp; simulation environment</p>
+    <p class="welcome-sub">VHDL Laboratory &middot; Offline VHDL design &amp; simulation environment</p>
     <button id="btnNewProject" class="btn primary xl">
       <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       New Project
@@ -360,7 +360,7 @@
   <footer class="app-footer">
     <div class="footer-left">
       <span>&copy; 2026 <span class="author">S.M.M.Mahmoodi</span></span>
-      <span>&middot; VHDL Laboratory (Digital Systems Laboratory 2)</span>
+      <span>&middot; VHDL Laboratory</span>
       <span>&middot; VHDL-2008 Offline Simulator</span>
     </div>
     <div class="footer-right">
@@ -843,7 +843,7 @@
       <!-- Tab 1: Structural VHDL -->
       <div id="guideStructural" class="guide-tab-pane guide-content active-pane">
         <h3>Structural VHDL Architecture &amp; Modular Hierarchy</h3>
-        <p>In digital systems engineering, complex hierarchical circuits (such as multi-bit adders, ALUs, and datapaths) are constructed by interconnecting reusable sub-blocks:</p>
+        <p>In digital logic and computer architecture engineering, complex hierarchical circuits (such as multi-bit adders, ALUs, and datapaths) are constructed by interconnecting reusable sub-blocks:</p>
         <ol>
           <li><strong>Modular Design:</strong> Create primitive blocks (e.g., <code>half_adder.vhd</code>, <code>full_adder.vhd</code>) first using the Project Navigator (+).</li>
           <li><strong>Component Declaration:</strong> In your parent module's architecture declarative region (before <code>begin</code>), declare the component signature:
@@ -905,8 +905,8 @@ end component half_adder;</div>
       <!-- Tab 4: About & Copyright -->
       <div id="guideAbout" class="guide-tab-pane guide-content hidden">
         <h3>About &amp; Licensing Information</h3>
-        <p><strong>VHDL Laboratory (Digital Systems Laboratory 2) &mdash; VHDL-2008 Offline EDA Environment</strong></p>
-        <p>An offline desktop-grade EDA suite designed for digital systems design, structural component modeling, and simulation verification.</p>
+        <p><strong>VHDL Laboratory &mdash; VHDL-2008 Offline EDA Environment</strong></p>
+        <p>An offline desktop-grade EDA suite designed for digital logic design, structural component modeling, and simulation verification.</p>
         <div class="guide-code-box">Copyright (c) 2026 S.M.M.Mahmoodi
 Software Architecture &amp; Project Lead: S.M.M.Mahmoodi
 Toolchain: GHDL 6.0.0 (mcode ucrt64), Python 3 / Flask, CodeMirror, WaveDrom engine</div>

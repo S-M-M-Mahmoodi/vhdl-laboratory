@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-test_suite.py -- End-to-end verification for Digital Systems Laboratory 2
+test_suite.py -- End-to-end verification for VHDL Laboratory
 =========================================================================
 Copyright (c) 2026 S.M.M.Mahmoodi
 Author & Lead Maintainer: S.M.M.Mahmoodi
@@ -352,7 +352,7 @@ def t8(client):
     r = client.get("/")
     assert r.status_code == 200
     html = r.get_data(as_text=True)
-    for needle in ("Digital Systems Laboratory 2", "New Project",
+    for needle in ("VHDL Laboratory", "New Project",
                    "Check Syntax", "Simulate Behavioral Model",
                    "assets/js/app.js", "assets/css/app.css",
                    "assets/js/waveviewer.js",
@@ -396,7 +396,7 @@ def t8(client):
     assert client.get("/projects/x.json").status_code == 404
     h = client.get("/health").get_json()
     assert h["ok"] is True and h["ghdl_found"] is True
-    assert h["app"] == "Digital Systems Laboratory 2"
+    assert h["app"] == "VHDL Laboratory"
 
 
 # ---------------------------------------------------------------------------
@@ -1397,7 +1397,7 @@ def preflight():
 
 def main():
     print("=" * 72)
-    print(" Digital Systems Laboratory 2 -- end-to-end test suite")
+    print(" VHDL Laboratory -- end-to-end test suite")
     print(f" project root : {PROJECT_DIR}")
     print("=" * 72)
 
