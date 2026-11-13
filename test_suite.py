@@ -1134,10 +1134,10 @@ def t23(client):
     # Verify simulation duration extends to full testbench stimulus duration (100ns)
     resp = client.post("/simulate", json={
         "files": [
-            {"filename": "adder.vhd", "code": Path("projects/adder/adder.vhd").read_text()},
-            {"filename": "tb_adder.vhd", "code": Path("projects/adder/tb_adder.vhd").read_text()},
+            {"filename": "n_bit_adder.vhd", "code": (PROJECTS_DIR / "n_bit_adder" / "n_bit_adder.vhd").read_text(encoding="utf-8")},
+            {"filename": "tb_n_bit_adder.vhd", "code": (PROJECTS_DIR / "n_bit_adder" / "tb_n_bit_adder.vhd").read_text(encoding="utf-8")},
         ],
-        "active_tb": "tb_adder.vhd",
+        "active_tb": "tb_n_bit_adder.vhd",
         "stop_time": "1us",
     })
     d = resp.get_json()

@@ -1,0 +1,103 @@
+{
+  "name": "n_bit_adder",
+  "folder": "n_bit_adder",
+  "standard": "08",
+  "author": "S.M.M.Mahmoodi",
+  "created": "2026-11-13",
+  "updated": "2026-11-13T15:20:00Z",
+  "entity": "n_bit_adder",
+  "top_entity": "n_bit_adder",
+  "active_tb": "tb_n_bit_adder.vhd",
+  "architecture": "Behavioral",
+  "ports": [
+    {
+      "name": "a",
+      "dir": "in",
+      "vector": true,
+      "msb": 7,
+      "lsb": 0
+    },
+    {
+      "name": "b",
+      "dir": "in",
+      "vector": true,
+      "msb": 7,
+      "lsb": 0
+    },
+    {
+      "name": "cin",
+      "dir": "in",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    },
+    {
+      "name": "sum",
+      "dir": "out",
+      "vector": true,
+      "msb": 7,
+      "lsb": 0
+    },
+    {
+      "name": "cout",
+      "dir": "out",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    }
+  ],
+  "files": [
+    {
+      "filename": "n_bit_adder.vhd",
+      "entity": "n_bit_adder",
+      "type": "design",
+      "architecture": "Behavioral",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : n_bit_adder\n-- Module Name  : n_bit_adder.vhd\n-- Entity Name  : n_bit_adder\n-- Architecture : Behavioral\n-- Target Lang  : VHDL-2008\n-- Engineer     : S.M.M.Mahmoodi\n-- Description  : Parametric N-bit adder with Carry-In and Carry-Out using numeric_std\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity n_bit_adder is\n  generic (\n    N : integer := 8\n  );\n  port (\n    a    : in  std_logic_vector(N - 1 downto 0);\n    b    : in  std_logic_vector(N - 1 downto 0);\n    cin  : in  std_logic := '0';\n    sum  : out std_logic_vector(N - 1 downto 0);\n    cout : out std_logic\n  );\nend entity n_bit_adder;\n\narchitecture Behavioral of n_bit_adder is\n  signal ext_a   : unsigned(N downto 0);\n  signal ext_b   : unsigned(N downto 0);\n  signal ext_cin : unsigned(N downto 0);\n  signal result  : unsigned(N downto 0);\nbegin\n  ext_a <= resize(unsigned(a), N + 1);\n  ext_b <= resize(unsigned(b), N + 1);\n  ext_cin(N downto 1) <= (others => '0');\n  ext_cin(0) <= cin;\n\n  result <= ext_a + ext_b + ext_cin;\n\n  sum  <= std_logic_vector(result(N - 1 downto 0));\n  cout <= result(N);\nend architecture Behavioral;\n",
+      "ports": [
+        {
+          "name": "a",
+          "dir": "in",
+          "vector": true,
+          "msb": 7,
+          "lsb": 0
+        },
+        {
+          "name": "b",
+          "dir": "in",
+          "vector": true,
+          "msb": 7,
+          "lsb": 0
+        },
+        {
+          "name": "cin",
+          "dir": "in",
+          "vector": false,
+          "msb": null,
+          "lsb": null
+        },
+        {
+          "name": "sum",
+          "dir": "out",
+          "vector": true,
+          "msb": 7,
+          "lsb": 0
+        },
+        {
+          "name": "cout",
+          "dir": "out",
+          "vector": false,
+          "msb": null,
+          "lsb": null
+        }
+      ]
+    },
+    {
+      "filename": "tb_n_bit_adder.vhd",
+      "entity": "tb_n_bit_adder",
+      "type": "simulation",
+      "architecture": "sim",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : n_bit_adder\n-- Testbench For: n_bit_adder\n-- Module Name  : tb_n_bit_adder.vhd\n-- Entity Name  : tb_n_bit_adder\n-- Architecture : sim\n-- Target Lang  : VHDL-2008\n-- Engineer     : S.M.M.Mahmoodi\n-- Description  : Testbench for parametric N-bit adder (N=8)\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_n_bit_adder is\nend entity tb_n_bit_adder;\n\narchitecture sim of tb_n_bit_adder is\n  constant N_BITS : integer := 8;\n\n  signal a    : std_logic_vector(N_BITS - 1 downto 0) := (others => '0');\n  signal b    : std_logic_vector(N_BITS - 1 downto 0) := (others => '0');\n  signal cin  : std_logic := '0';\n  signal sum  : std_logic_vector(N_BITS - 1 downto 0);\n  signal cout : std_logic;\n\nbegin\n  -- Instantiate DUT (8-bit adder)\n  dut : entity work.n_bit_adder\n    generic map (\n      N => N_BITS\n    )\n    port map (\n      a    => a,\n      b    => b,\n      cin  => cin,\n      sum  => sum,\n      cout => cout\n    );\n\n  -- Stimulus process (100 ns total duration)\n  stim_proc : process\n  begin\n    -- Vector 1: 0 + 0 + 0 = 0, cout=0\n    a   <= std_logic_vector(to_unsigned(0, N_BITS));\n    b   <= std_logic_vector(to_unsigned(0, N_BITS));\n    cin <= '0';\n    wait for 20 ns;\n\n    -- Vector 2: 15 + 10 + 0 = 25 (0x19), cout=0\n    a   <= std_logic_vector(to_unsigned(15, N_BITS));\n    b   <= std_logic_vector(to_unsigned(10, N_BITS));\n    cin <= '0';\n    wait for 20 ns;\n\n    -- Vector 3: 15 + 10 + 1 = 26 (0x1A), cout=0\n    cin <= '1';\n    wait for 20 ns;\n\n    -- Vector 4: 200 + 55 + 0 = 255 (0xFF), cout=0\n    a   <= std_logic_vector(to_unsigned(200, N_BITS));\n    b   <= std_logic_vector(to_unsigned(55, N_BITS));\n    cin <= '0';\n    wait for 20 ns;\n\n    -- Vector 5: 255 + 1 + 0 = 256 -> sum=0x00, cout=1 (Overflow/Carry)\n    a   <= std_logic_vector(to_unsigned(255, N_BITS));\n    b   <= std_logic_vector(to_unsigned(1, N_BITS));\n    cin <= '0';\n    wait for 20 ns;\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+      "ports": []
+    }
+  ]
+}
