@@ -3,7 +3,7 @@
 > **Copyright:** &copy; 2026 S.M.M.Mahmoodi  
 > **License:** MIT License  
 
-A desktop-grade, offline web-based Electronic Design Automation (EDA) suite and behavioral simulator for digital logic design, computer architecture, and hardware description language (HDL) education. Fully compliant with **IEEE VHDL-2008**, replicating the core design workflows of industry-standard tools like Xilinx Vivado, Xilinx ISE Project Navigator, and ModelSim.
+A desktop-grade, offline web-based Electronic Design Automation (EDA) suite and behavioral simulator for digital logic design, computer architecture, and hardware description language (HDL) education. Fully compliant with all major IEEE VHDL standards (**VHDL-2008**, **VHDL-93**, **VHDL-2002**, **VHDL-2019**, and **VHDL-1987**), replicating the core design workflows of industry-standard tools like Xilinx Vivado, Xilinx ISE Project Navigator, and ModelSim.
 
 Powered by the open-source **GHDL** compiler (bundled in offline release packages or installed via system PATH), interactive **CodeMirror** multi-tab editor, a professional **Project Navigator (Design & Simulation Sources)** tree, and a high-precision vector **Waveform Viewer**.
 
