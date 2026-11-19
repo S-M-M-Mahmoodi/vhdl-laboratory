@@ -49,6 +49,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 import uuid
 import webbrowser
 import zipfile
@@ -659,31 +660,31 @@ def api_version():
     })
 
 
-@app.post("/api/system/update")
-def apply_update_patch():
-    """Apply an in-app patch zip uploaded by the student / instructor."""
-    if "patch_file" not in request.files:
-        return jsonify(ok=False, message="No patch file provided in request."), 400
+def _parse_version(v_str: str) -> tuple[int, ...]:
+    nums = re.findall(r"\d+", str(v_str or ""))
+    return tuple(int(x) for x in nums) if nums else (0,)
 
-    file = request.files["patch_file"]
-    if not file or not file.filename:
-        return jsonify(ok=False, message="Selected patch file is empty."), 400
 
-    if not file.filename.lower().endswith(".zip"):
-        return jsonify(ok=False, message="Invalid file format. Update patch must be a .zip archive."), 400
+def _apply_patch_bytes(file_bytes: io.BytesIO, server_port: str = "5000") -> tuple[bool, dict, int]:
+    if not zipfile.is_zipfile(file_bytes):
+        return False, {"ok": False, "message": "The uploaded file is not a valid zip archive."}, 400
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_dir = BACKUP_UPDATES_DIR / f"backup_{timestamp}"
 
     try:
-        file_bytes = io.BytesIO(file.read())
-        if not zipfile.is_zipfile(file_bytes):
-            return jsonify(ok=False, message="The uploaded file is not a valid zip archive."), 400
-
         with zipfile.ZipFile(file_bytes, "r") as zf:
             infolist = zf.infolist()
             if not infolist:
-                return jsonify(ok=False, message="Patch archive is empty."), 400
+                return False, {"ok": False, "message": "Patch archive is empty."}, 400
+
+            # Detect common root prefix (e.g. from GitHub zipball owner-repo-hash/)
+            names = [info.filename.replace("\\", "/") for info in infolist if not info.is_dir()]
+            root_prefix = ""
+            if names and "/" in names[0]:
+                candidate = names[0].split("/")[0] + "/"
+                if all(n.startswith(candidate) for n in names):
+                    root_prefix = candidate
 
             valid_entries = []
             # Step 1: Pre-validation & Security checks (Zip Slip & Protected Directories)
@@ -693,28 +694,32 @@ def apply_update_patch():
                 if info.is_dir() or raw_name.startswith("__MACOSX/") or raw_name.endswith(".DS_Store"):
                     continue
 
+                rel_name = raw_name[len(root_prefix):] if root_prefix and raw_name.startswith(root_prefix) else raw_name
+                if not rel_name:
+                    continue
+
                 # Zip Slip path traversal check
-                resolved_path = (BASE_DIR / raw_name).resolve()
+                resolved_path = (BASE_DIR / rel_name).resolve()
                 try:
                     resolved_path.relative_to(BASE_DIR.resolve())
                 except ValueError:
-                    return jsonify(ok=False, message=f"Security violation: Illegal file path in patch '{raw_name}'."), 400
+                    return False, {"ok": False, "message": f"Security violation: Illegal file path in patch '{rel_name}'."}, 400
 
                 # Protect user projects, ghdl binary, workspace, and launcher scripts
-                lower_norm = raw_name.lower().replace("\\", "/")
+                lower_norm = rel_name.lower().replace("\\", "/")
                 if lower_norm in PROTECTED_PREFIXES or lower_norm.startswith(PROTECTED_PREFIXES):
                     continue
 
                 # Extension check
-                suffix = Path(raw_name).suffix.lower()
-                name_lower = Path(raw_name).name.lower()
+                suffix = Path(rel_name).suffix.lower()
+                name_lower = Path(rel_name).name.lower()
                 if suffix not in ALLOWED_UPDATE_EXTS and name_lower not in ALLOWED_UPDATE_FILENAMES:
-                    return jsonify(ok=False, message=f"Rejected file type '{suffix}' in patch ({raw_name})."), 400
+                    return False, {"ok": False, "message": f"Rejected file type '{suffix}' in patch ({rel_name})."}, 400
 
-                valid_entries.append((info, raw_name, resolved_path))
+                valid_entries.append((info, rel_name, resolved_path))
 
             if not valid_entries:
-                return jsonify(ok=False, message="No valid updatable files found in the patch."), 400
+                return False, {"ok": False, "message": "No valid updatable files found in the patch."}, 400
 
             # Step 2: Backup existing files before overwriting
             BACKUP_UPDATES_DIR.mkdir(parents=True, exist_ok=True)
@@ -737,8 +742,6 @@ def apply_update_patch():
             # If app.py was updated and server is running live, schedule a seamless restart
             app_py_updated = any(p == "app.py" for p in updated_files)
             if app_py_updated and os.environ.get("VHDL_LIVE_SERVER") == "1":
-                current_server_port = str(request.environ.get("SERVER_PORT") or os.environ.get("PORT", "5000"))
-
                 def _delayed_restart():
                     time.sleep(0.8)
                     print("\n[*] Reloading VHDL Laboratory backend to activate updated app.py...")
@@ -759,7 +762,7 @@ def apply_update_patch():
 
                         # 2. Set environment flags and execv the updated app.py
                         os.environ["VHDL_RESTARTED"] = "1"
-                        os.environ["PORT"] = current_server_port
+                        os.environ["PORT"] = server_port
                         py_bin = sys.executable
                         target_script = str(BASE_DIR / "app.py")
                         os.chdir(str(BASE_DIR))
@@ -769,14 +772,14 @@ def apply_update_patch():
 
                 threading.Thread(target=_delayed_restart, daemon=True).start()
 
-            return jsonify(
-                ok=True,
-                message=f"Update patch applied successfully! ({len(updated_files)} files updated)",
-                updated_files=updated_files,
-                restart_required=app_py_updated,
-                backup_folder=str(backup_dir.relative_to(BASE_DIR)),
-                timestamp=timestamp
-            )
+            return True, {
+                "ok": True,
+                "message": f"Update patch applied successfully! ({len(updated_files)} files updated)",
+                "updated_files": updated_files,
+                "restart_required": app_py_updated,
+                "backup_folder": str(backup_dir.relative_to(BASE_DIR)),
+                "timestamp": timestamp
+            }, 200
 
     except Exception as exc:
         # If extraction failed, attempt rollback from backup
@@ -790,7 +793,183 @@ def apply_update_patch():
                         shutil.copy2(b_file, orig)
                     except Exception:
                         pass
-        return jsonify(ok=False, message=f"Failed to apply update patch: {exc}"), 500
+        return False, {"ok": False, "message": f"Failed to apply update patch: {exc}"}, 500
+
+
+@app.post("/api/system/update")
+def apply_update_patch():
+    """Apply an in-app patch zip uploaded by the student / instructor."""
+    if "patch_file" not in request.files:
+        return jsonify(ok=False, message="No patch file provided in request."), 400
+
+    file = request.files["patch_file"]
+    if not file or not file.filename:
+        return jsonify(ok=False, message="Selected patch file is empty."), 400
+
+    if not file.filename.lower().endswith(".zip"):
+        return jsonify(ok=False, message="Invalid file format. Update patch must be a .zip archive."), 400
+
+    file_bytes = io.BytesIO(file.read())
+    current_server_port = str(request.environ.get("SERVER_PORT") or os.environ.get("PORT", "5000"))
+    success, res_payload, status = _apply_patch_bytes(file_bytes, current_server_port)
+    return jsonify(res_payload), status
+
+
+@app.get("/api/system/check_update")
+def check_online_update():
+    """Check GitHub repository releases for a newer version of VHDL Laboratory."""
+    repo = "S-M-M-Mahmoodi/vhdl-laboratory"
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "VHDL-Laboratory-Updater",
+            "Accept": "application/vnd.github.v3+json",
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            if resp.status != 200:
+                return jsonify(ok=False, message=f"GitHub API returned status {resp.status}"), 502
+            data = json.loads(resp.read().decode("utf-8"))
+
+        remote_tag = data.get("tag_name", "").strip()
+        remote_version = remote_tag.lstrip("vV")
+        local_version = APP_VERSION
+
+        remote_ver_tuple = _parse_version(remote_version)
+        local_ver_tuple = _parse_version(local_version)
+        has_update = remote_ver_tuple > local_ver_tuple
+
+        # Look for a .zip asset or fallback to zipball_url
+        download_url = None
+        asset_name = None
+        for asset in data.get("assets", []):
+            aname = str(asset.get("name", ""))
+            if aname.lower().endswith(".zip"):
+                download_url = asset.get("browser_download_url")
+                asset_name = aname
+                break
+        if not download_url:
+            download_url = data.get("zipball_url")
+            asset_name = f"{remote_tag}.zip"
+
+        return jsonify(
+            ok=True,
+            current_version=local_version,
+            latest_version=remote_version,
+            tag_name=remote_tag,
+            has_update=has_update,
+            release_name=data.get("name") or remote_tag,
+            release_notes=data.get("body") or "",
+            published_at=data.get("published_at") or "",
+            html_url=data.get("html_url") or f"https://github.com/{repo}/releases",
+            download_url=download_url,
+            asset_name=asset_name
+        )
+    except urllib.error.HTTPError as err:
+        if err.code == 404:
+            return jsonify(
+                ok=True,
+                current_version=APP_VERSION,
+                latest_version=APP_VERSION,
+                has_update=False,
+                message="No releases published yet on GitHub repo."
+            )
+        return jsonify(ok=False, message=f"GitHub request returned error {err.code}: {err.reason}"), 502
+    except Exception as exc:
+        return jsonify(ok=False, message=f"Could not reach GitHub releases: {exc}"), 502
+
+
+def _is_safe_download_url(url: str) -> tuple[bool, str]:
+    """Validate that the download URL points to official GitHub repository releases to prevent SSRF."""
+    if not isinstance(url, str) or not url.strip():
+        return False, "Missing or empty download URL."
+    try:
+        parsed = urllib.parse.urlparse(url.strip())
+    except Exception:
+        return False, "Malformed download URL."
+
+    if parsed.scheme.lower() != "https":
+        return False, "Untrusted URL scheme: Updates must use HTTPS."
+
+    hostname = (parsed.hostname or "").lower()
+    allowed_hosts = {
+        "github.com",
+        "api.github.com",
+        "codeload.github.com",
+        "raw.githubusercontent.com",
+        "objects.githubusercontent.com",
+    }
+    if hostname not in allowed_hosts and not any(hostname.endswith("." + h) for h in allowed_hosts):
+        return False, f"Untrusted domain {hostname!r}: Updates must originate from GitHub releases."
+
+    # Prevent loopback or private IP hostnames
+    if (
+        hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+        or hostname.startswith("192.168.")
+        or hostname.startswith("10.")
+        or hostname.startswith("172.")
+    ):
+        return False, "Private or loopback network addresses are not permitted."
+
+    path = parsed.path
+    if hostname in ("github.com", "codeload.github.com", "raw.githubusercontent.com"):
+        if not path.lower().startswith("/s-m-m-mahmoodi/vhdl-laboratory"):
+            return False, "Download URL must point to the official repository releases."
+    elif hostname == "api.github.com":
+        if not path.lower().startswith("/repos/s-m-m-mahmoodi/vhdl-laboratory"):
+            return False, "Download URL must point to the official repository releases."
+
+    return True, ""
+
+
+@app.post("/api/system/auto_update")
+def auto_update():
+    """Download the latest release zip from GitHub and apply it automatically."""
+    payload = request.get_json(silent=True) or {}
+    download_url = payload.get("download_url")
+
+    if not download_url:
+        check_res = check_online_update()
+        if isinstance(check_res, tuple):
+            res_obj, status_code = check_res
+            if status_code != 200:
+                return res_obj, status_code
+            res_data = res_obj.get_json()
+        else:
+            res_data = check_res.get_json()
+
+        if not res_data or not res_data.get("ok"):
+            return jsonify(ok=False, message=res_data.get("message", "Failed to check latest release.")), 502
+        if not res_data.get("has_update") and not payload.get("force"):
+            return jsonify(ok=False, message="Your VHDL Laboratory is already up to date!"), 400
+        download_url = res_data.get("download_url")
+
+    if not download_url:
+        return jsonify(ok=False, message="No valid download package URL found for this release."), 400
+
+    is_safe, err_msg = _is_safe_download_url(download_url)
+    if not is_safe:
+        return jsonify(ok=False, message=f"Security error: {err_msg}"), 400
+
+    req = urllib.request.Request(
+        download_url,
+        headers={
+            "User-Agent": "VHDL-Laboratory-Updater",
+            "Accept": "application/octet-stream, application/zip, */*",
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read()
+            file_bytes = io.BytesIO(content)
+    except Exception as exc:
+        return jsonify(ok=False, message=f"Failed to download update package: {exc}"), 502
+
+    current_server_port = str(request.environ.get("SERVER_PORT") or os.environ.get("PORT", "5000"))
+    success, res_payload, status = _apply_patch_bytes(file_bytes, current_server_port)
+    return jsonify(res_payload), status
 
 
 # ---------------------------------------------------------------------------
@@ -948,6 +1127,7 @@ def _sanitize_project(payload: dict) -> tuple[dict | None, str | None]:
         "tb_code": tb_code,
         "design_ok": bool(payload.get("design_ok")),
         "tb_ok": bool(payload.get("tb_ok")),
+        "board_bench": payload.get("board_bench") if isinstance(payload.get("board_bench"), dict) else None,
     }, None
 
 
@@ -1481,6 +1661,27 @@ def projects_save():
         standard=project.get("standard", "08"),
         updated=project["updated"]
     )
+
+
+@app.post("/api/board/save_bench")
+def board_save_bench():
+    data = request.get_json(silent=True) or {}
+    target = str((data.get("name") or data.get("folder") or data.get("project") or "").strip())
+    path = _project_path(target)
+    if not path or not path.exists():
+        return jsonify(ok=False, message=f"Project {target!r} not found."), 404
+    bench = data.get("board_bench")
+    if not isinstance(bench, dict):
+        return jsonify(ok=False, message="Invalid board_bench payload."), 400
+    try:
+        with SIM_LOCK:
+            project = json.loads(path.read_text(encoding="utf-8"))
+            project["board_bench"] = bench
+            project["updated"] = datetime.now(timezone.utc).isoformat()
+            path.write_text(json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
+        return jsonify(ok=True, message="Board bench saved successfully.")
+    except Exception as exc:
+        return jsonify(ok=False, message=f"Failed to save board bench: {exc}"), 500
 
 
 @app.post("/api/projects/load")
@@ -2348,6 +2549,14 @@ def download_simulation_vcd():
         mimetype="text/plain; charset=utf-8",
         max_age=0
     )
+
+
+# ---------------------------------------------------------------------------
+# Board Lab: FPGA board-level simulation (DIP switches, LEDs, 7-segment, ...)
+# Registered at the end to avoid circular imports (board_lab reuses helpers
+# defined above).
+from board_lab import bp as board_lab_bp  # noqa: E402
+app.register_blueprint(board_lab_bp)
 
 
 if __name__ == "__main__":

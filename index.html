@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="assets/vendor/codemirror.min.css">
 <link rel="stylesheet" href="assets/vendor/dracula.min.css">
 <link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="assets/css/board_lab.css">
 <script src="assets/vendor/codemirror.min.js"></script>
 <script src="assets/vendor/vhdl.min.js"></script>
 <script src="assets/vendor/closebrackets.min.js"></script>
@@ -147,6 +148,7 @@
             <button id="mSimRun">Simulate Behavioral Model<kbd>F5 / Ctrl+Enter</kbd></button>
             <div class="eda-menu-divider"></div>
             <button id="mSimWave">Open Waveform Viewer...<kbd>F6</kbd></button>
+            <button id="mSimBoard">Board Lab (Virtual FPGA Bench)...<kbd>F8</kbd></button>
             <button id="mSimVcd">Download Waveform (.vcd)...</button>
           </div>
         </div>
@@ -157,7 +159,8 @@
             <button id="mHelpGuide">User Guide &amp; Lab Manual<kbd>F1</kbd></button>
             <button id="mHelpShortcuts">Keyboard Shortcuts Reference...</button>
             <div class="eda-menu-divider"></div>
-            <button id="mHelpUpdate"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2v9M4 8l4 4 4-4M2 14h12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Install Update Patch (.zip)...</button>
+            <button id="mHelpCheckUpdate"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2v9M4 8l4 4 4-4M2 14h12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Check for Updates Online...</button>
+            <button id="mHelpUpdate"><svg width="13" height="13" viewBox="0 0 16 16"><path d="M14 10v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-3M8 2v8M5 5l3-3 3 3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Install Update Patch (.zip)...</button>
             <div class="eda-menu-divider"></div>
             <button id="mHelpAbout">About VHDL Laboratory</button>
           </div>
@@ -250,6 +253,11 @@
         <button id="btnWave" class="btn wave-hidden tb-btn" title="Open the waveform viewer window (F6)">
           <svg viewBox="0 0 16 16" width="13" height="13"><path d="M1 8h3l2-5 4 10 2-5h3" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span class="btn-label">Waveforms</span>
+        </button>
+        <button id="btnBoardLab" class="btn tb-btn" title="Board Lab: simulate your entity on a virtual FPGA board with switches, LEDs and 7-segment displays (F8)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+          <span class="btn-text-full">Board Lab</span>
+          <span class="btn-text-short">Board</span>
         </button>
       </div>
     </div>
@@ -1038,9 +1046,293 @@ Toolchain: GHDL 6.0.0 (mcode ucrt64), Python 3 / Flask, CodeMirror, WaveDrom eng
   </div>
 </div>
 
+<!-- ==================== Online Check / Auto-Update Modal ==================== -->
+<div id="checkUpdateModal" class="overlay hidden">
+  <div class="modal sm update-modal">
+    <div class="modal-head">
+      <h2>
+        <svg viewBox="0 0 16 16" width="18" height="18"><path d="M8 2v9M4 8l4 4 4-4M2 14h12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Check for Updates Online
+      </h2>
+      <button id="checkUpdateClose" class="icon-btn" title="Close (Esc)">
+        <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="checkUpdateLoading" class="check-update-loading" style="padding:20px;text-align:center;color:#8b99ab">
+        <span class="bl-spin" style="width:20px;height:20px;border-width:2.5px;display:inline-block;vertical-align:middle;margin-right:8px"></span>
+        Checking GitHub repository for latest releases...
+      </div>
+      <div id="checkUpdateContent" class="check-update-content hidden">
+        <div class="check-update-version-banner" id="checkUpdateBanner" style="padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;line-height:1.5"></div>
+        <div class="check-update-notes hidden" id="checkUpdateNotes" style="margin-bottom:12px">
+          <div style="font-weight:600;font-size:12px;color:#d5dfe9;margin-bottom:4px">Release Notes:</div>
+          <pre id="checkNotesBody" style="background:#0d1117;border:1px solid #1e2733;border-radius:6px;padding:8px 10px;font-size:11.5px;max-height:140px;overflow-y:auto;white-space:pre-wrap;margin:0;color:#8b99ab"></pre>
+        </div>
+        <div id="checkUpdateProgress" class="update-status hidden"></div>
+        <div id="checkUpdateError" class="err-text" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="checkUpdateCancel" class="btn ghost">Close</button>
+      <button id="btnRunAutoUpdate" class="btn primary hidden">Update Now</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
+<!-- ==================== Board Lab: FPGA board simulator (Proteus-style) ==================== -->
+<div id="boardLab" class="bl-overlay">
+  <header class="bl-top">
+    <div class="bl-brand">
+      <span class="bl-chip">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M9 9h6v6H9zM9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+      </span>
+      Board Lab
+    </div>
+    <nav class="bl-nav">
+      <button id="blBtnUndo" type="button" title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button id="blBtnRedo" type="button" title="Redo (Ctrl+Y)">↷ Redo</button>
+      <button id="blBtnClearBoard" type="button" title="Remove every element from the canvas">Clear</button>
+    </nav>
+    <div class="bl-top-right">
+      <span id="blEntityChip" class="bl-entity-chip">no entity</span>
+      <button id="blBtnRun" class="bl-btn bl-btn--run" type="button">
+        <span class="bl-spin"></span>
+        <svg class="bl-run-dot" viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>
+        Run
+      </button>
+      <button id="blBtnLive" class="bl-btn" type="button" title="Re-run the board simulation automatically after every switch change">Live: off</button>
+      <button id="blBtnClose" class="bl-btn bl-btn--ghost" type="button" title="Close (Esc)">✕</button>
+    </div>
+  </header>
+
+  <div class="bl-main">
+    <!-- ======================= element palette (drag from here) ======================= -->
+    <aside class="bl-palette" id="blPalette">
+      <div class="bl-palette-head">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6V3.5A1.5 1.5 0 0 1 5.5 2h5A1.5 1.5 0 0 1 12 3.5V6M2.5 13.5h11a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-11a1 1 0 0 0-1 1v5.5a1 1 0 0 0 1 1z"/></svg>
+        Components
+      </div>
+      <div class="bl-palette-hint">drag onto canvas · double-click to configure</div>
+      <div class="bl-palette-list" id="blPaletteList"></div>
+    </aside>
+
+    <!-- ============================== board canvas ============================== -->
+    <section class="bl-stage" id="blStage">
+      <div class="bl-stage-head">
+        <span class="bl-kicker">FPGA BOARD · PROTEUS-STYLE NET LABELS</span>
+        <span class="bl-stage-title" id="blStageTitle">Board Lab</span>
+        <span class="bl-stage-tip">double-click component to edit pin nets</span>
+      </div>
+
+      <div class="bl-empty" id="blEmpty">
+        <div class="bl-empty-title">Build your experiment bench</div>
+        <p id="blEmptyMsg">
+          Drag components from the left palette onto the canvas. <b>Double-click</b> any component
+          to inspect its schematic and assign net labels to pins. Terminals with the same net label
+          are electrically connected. Press <b>Run</b> to simulate with GHDL.
+        </p>
+      </div>
+
+      <div class="bl-canvas" id="blCanvas">
+        <div class="bl-canvas-world" id="blCanvasWorld">
+          <!-- Canvas Origin Marker (0,0) -->
+          <div id="blOriginMarker" class="bl-origin-marker">
+            <svg viewBox="-30 -30 90 90" width="90" height="90" class="bl-origin-svg">
+              <line x1="-24" y1="0" x2="42" y2="0" stroke="#5fd3f0" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.5"/>
+              <line x1="0" y1="-24" x2="0" y2="42" stroke="#5fd3f0" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.5"/>
+              <line x1="0" y1="0" x2="38" y2="0" stroke="#5fd3f0" stroke-width="1.8"/>
+              <polygon points="42,0 34,-3 34,3" fill="#5fd3f0"/>
+              <line x1="0" y1="0" x2="0" y2="38" stroke="#5fd3f0" stroke-width="1.8"/>
+              <polygon points="0,42 -3,34 3,34" fill="#5fd3f0"/>
+              <circle cx="0" cy="0" r="6" fill="none" stroke="#5fd3f0" stroke-width="1.4"/>
+              <circle cx="0" cy="0" r="2.2" fill="#5fd3f0"/>
+              <text x="44" y="3.5" font-family="'JetBrains Mono', Consolas, monospace" font-size="8.5" font-weight="700" fill="#5fd3f0">+X</text>
+              <text x="3" y="50" font-family="'JetBrains Mono', Consolas, monospace" font-size="8.5" font-weight="700" fill="#5fd3f0">+Y</text>
+              <text x="-6" y="-9" font-family="'JetBrains Mono', Consolas, monospace" font-size="8" font-weight="600" fill="#8b99ab" opacity="0.9">(0,0)</text>
+            </svg>
+          </div>
+          <!-- Live drawing overlay & HUD for Paint-style tools -->
+          <svg id="blDrawOverlay" class="bl-draw-overlay"></svg>
+          <div id="blDrawHud" class="bl-draw-hud hidden"></div>
+          <!-- elements + fpga chip are placed here by board_lab.js -->
+        </div>
+      </div>
+
+      <!-- status strip -->
+      <div class="bl-statusbar">
+        <span class="bl-dot" id="blDotState"></span>
+        <span id="blStateText">idle</span>
+        <span class="bl-sep"></span>
+        <span id="blSimInfo">not simulated yet</span>
+        <span class="bl-sep"></span>
+        <span id="blCountInfo">0 components</span>
+        <span style="flex:1"></span>
+        <div class="bl-zoom-controls">
+          <button id="blBtnZoomOut" class="bl-zoom-btn" type="button" title="Zoom Out (−)">−</button>
+          <span id="blZoomLevel" class="bl-zoom-level" title="Reset Zoom (100%)">100%</span>
+          <button id="blBtnZoomIn" class="bl-zoom-btn" type="button" title="Zoom In (+)">+</button>
+          <button id="blBtnZoomFit" class="bl-zoom-btn bl-zoom-fit" type="button" title="Fit All / Reset Pan">Fit</button>
+          <button id="blBtnOrigin" class="bl-zoom-btn bl-zoom-origin" type="button" title="Go to Origin (0,0) [Home]">⌖ Origin</button>
+        </div>
+        <span class="bl-sep"></span>
+        <button id="blBtnLogToggle" class="bl-zoom-btn bl-log-btn" type="button" title="Toggle Board Simulation Log">Log ▴</button>
+        <span class="bl-sep"></span>
+        <label class="bl-freq-lab">Default Clock
+          <select id="blClockFreq" title="Default clock generator frequency">
+            <option value="100">100 MHz</option>
+            <option value="50" selected>50 MHz</option>
+            <option value="25">25 MHz</option>
+            <option value="10">10 MHz</option>
+            <option value="1">1 MHz</option>
+          </select>
+        </label>
+        <details class="bl-help">
+          <summary>Help</summary>
+          <div class="bl-help-body">
+            <p><b>Place</b> — drag a component from the palette onto the canvas. Drag to move, double-click to configure pins.</p>
+            <p><b>Proteus Net Labels</b> — double-click any component to open its schematic and assign net labels to each pin (e.g. <code>clk</code>, <code>rst</code>, <code>sw0</code>, <code>VCC</code>, <code>GND</code>). Pins with matching names are connected.</p>
+            <p><b>Vectors</b> — vector ports like <code>A(7 downto 0)</code> can be connected bit-by-bit or as a whole bus.</p>
+            <p><b>Simulate</b> — <b>Run</b> compiles your entity + generated board testbench with GHDL; switches stay interactive and Live mode re-simulates immediately on switch flips.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- floating log panel (positioned above statusbar so it never obscures Default Clock or Help) -->
+      <div class="bl-logpanel is-collapsed" id="blLogPanel">
+        <div class="bl-logpanel-head" id="blLogHead" title="Click to expand / collapse">
+          <span>Board log</span>
+          <div class="bl-logpanel-actions">
+            <button id="blLogToggle" type="button" title="Collapse / expand">▾</button>
+            <button id="blLogClose" type="button" title="Close log panel">✕</button>
+          </div>
+        </div>
+        <div class="bl-log" id="blLog"><span class="bl-log-dim">— no runs yet —</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== Component Properties Modal (Proteus-Style) ==================== -->
+  <div id="blPropsModal" class="bl-modal-backdrop hidden">
+    <div class="bl-modal-card">
+      <div class="bl-modal-header">
+        <div class="bl-modal-title-group">
+          <span class="bl-modal-icon" id="blPropsIcon">⚙</span>
+          <div>
+            <h3 id="blPropsTitle" style="margin:0;font-size:15px;color:#e8f0f7">Component Properties</h3>
+            <span id="blPropsSubtitle" style="font-size:11px;color:#8b99ab">Proteus Net-Label Pin Assignment</span>
+          </div>
+        </div>
+        <button id="blPropsClose" type="button" class="bl-modal-close" title="Close (Esc)">✕</button>
+      </div>
+      <div class="bl-modal-body">
+        <div class="bl-props-grid">
+          <div class="bl-schematic-col">
+            <div class="bl-schematic-label">Component Schematic / Symbol</div>
+            <div class="bl-schematic-box" id="blSchematicBox"></div>
+          </div>
+          <div class="bl-pins-col">
+            <div class="bl-pins-label" id="blPropsPinsLabel">Pin Net Labels</div>
+            <div class="bl-pins-desc" id="blPropsPinsDesc">Assign net labels to pins. Pins with the same label are electrically connected.</div>
+            
+            <div id="blPropsClockOptions" class="bl-props-clock hidden">
+              <label>Frequency:
+                <input type="number" id="blPropClkFreq" min="0.001" step="any" value="50" style="width:75px">
+              </label>
+              <select id="blPropClkUnit">
+                <option value="Hz">Hz</option>
+                <option value="kHz">kHz</option>
+                <option value="MHz" selected>MHz</option>
+              </select>
+            </div>
+
+            <!-- Bus Quick Assign for DIP switches -->
+            <div id="blPropsBusOptions" class="bl-props-bus hidden" style="margin-bottom:12px;padding:8px 10px;background:#101722;border:1px solid #1f2c3d;border-radius:6px">
+              <div style="font-size:11px;color:#8b99ab;margin-bottom:5px">Bus Net (Auto-assign all bits):</div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="text" id="blPropBusNet" placeholder="e.g. sw (sets sw(0)..sw(7))" style="flex:1;background:#0d1117;border:1px solid #2a3547;color:#5fd3f0;font-size:11.5px;padding:4px 8px;border-radius:4px">
+                <button type="button" id="blBtnAutoBus" class="bl-btn" style="padding:3px 10px;font-size:11px">Auto-Assign</button>
+              </div>
+            </div>
+
+            <!-- Text Box Properties -->
+            <div id="blPropsTextOptions" class="bl-props-text hidden" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px">
+              <label style="font-size:11.5px;color:#8b99ab;display:flex;flex-direction:column;gap:4px">
+                <span>Text Content:</span>
+                <textarea id="blPropTextContent" rows="3" style="width:100%;background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:6px;border-radius:4px;font-family:inherit;font-size:13px"></textarea>
+              </label>
+              <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+                <label style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Font Size:</span>
+                  <input type="number" id="blPropTextSize" min="8" max="72" value="14" style="width:60px;background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:3px 6px;border-radius:4px"> px
+                </label>
+                <label style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Color:</span>
+                  <input type="color" id="blPropTextColor" value="#d5dfe9" style="width:36px;height:24px;border:none;background:none;cursor:pointer">
+                </label>
+                <label style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px;cursor:pointer">
+                  <input type="checkbox" id="blPropTextBold">
+                  <span>Bold</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Geometric Shape Properties -->
+            <div id="blPropsShapeOptions" class="bl-props-shape hidden" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px">
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                <label id="blPropShapeWLabel" style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Width / Length:</span>
+                  <input type="number" id="blPropShapeW" min="10" max="1200" value="120" style="width:70px;background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:3px 6px;border-radius:4px"> px
+                </label>
+                <label id="blPropShapeHLabel" style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Height:</span>
+                  <input type="number" id="blPropShapeH" min="10" max="1200" value="80" style="width:70px;background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:3px 6px;border-radius:4px"> px
+                </label>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                <label style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Line Color:</span>
+                  <input type="color" id="blPropShapeStroke" value="#5fd3f0" style="width:36px;height:24px;border:none;background:none;cursor:pointer">
+                </label>
+                <label style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Thickness:</span>
+                  <input type="number" id="blPropShapeStrokeW" min="1" max="24" value="2" style="width:55px;background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:3px 6px;border-radius:4px"> px
+                </label>
+                <label style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Line Style:</span>
+                  <select id="blPropShapeDash" style="background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:3px 6px;border-radius:4px">
+                    <option value="solid">Solid ───</option>
+                    <option value="dashed">Dashed ─ ─</option>
+                    <option value="dotted">Dotted · · ·</option>
+                  </select>
+                </label>
+                <label id="blPropShapeFillLabel" style="font-size:11.5px;color:#8b99ab;display:flex;align-items:center;gap:6px">
+                  <span>Fill:</span>
+                  <select id="blPropShapeFillType" style="background:#0d1117;border:1px solid #2a3547;color:#d5dfe9;padding:3px 6px;border-radius:4px">
+                    <option value="none">None (Transparent)</option>
+                    <option value="color">Solid Fill</option>
+                  </select>
+                  <input type="color" id="blPropShapeFillColor" value="#121820" style="width:32px;height:24px;border:none;background:none;cursor:pointer;display:none">
+                </label>
+              </div>
+            </div>
+
+            <div class="bl-pins-list" id="blPropsPinsList"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bl-modal-footer">
+        <button id="blPropsCancel" type="button" class="bl-btn bl-btn--ghost">Cancel</button>
+        <button id="blPropsSave" type="button" class="bl-btn bl-btn--run">Apply Net Labels</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="assets/js/waveviewer.js"></script>
+<script src="assets/js/board_lab.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>

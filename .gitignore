@@ -18,6 +18,12 @@ _backup_updates/
 *.zip
 *.rar
 
+# Media & promotional recordings
+*.mp4
+*.webm
+*.mov
+*.avi
+
 # Instructor patch generator tools (kept private)
 make_patch.py
 make_patch.bat

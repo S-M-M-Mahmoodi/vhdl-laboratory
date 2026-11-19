@@ -19,7 +19,7 @@ vhdl-laboratory/
   run_webapp.sh             <-- One-click Linux & macOS launcher (./run_webapp.sh)
   app.py                    <-- Flask EDA backend (GHDL controller, multi-file compilation, VCD parser)
   index.html                <-- Responsive IDE interface with Project Navigator & Waveform Viewer
-  test_suite.py             <-- End-to-end automated test suite (27 verified test cases; skips T18 gracefully if WinRAR is absent)
+  test_suite.py             <-- End-to-end automated test suite (32 verified test cases; skips T18 gracefully if WinRAR is absent)
   assets\
     css\app.css             <-- Dark theme stylesheets (VS Code Dark+, Vivado Dark, Monokai Pro)
     js\app.js               <-- Application logic, Project Navigator controller, dynamic multi-tab manager
@@ -85,6 +85,20 @@ Like modern FPGA/ASIC EDA suites (Vivado / ISE), the left sidebar provides hiera
 - Once initial dependencies are installed (`pip install -r requirements.txt`), all editor assets, vector fonts (Inter & JetBrains Mono), simulation engines, and waveform renderers operate completely air-gapped without network connectivity.
 - Portable: Runs directly from any folder or USB drive across Windows, Linux, and macOS.
 
+### 5. Board Lab — Proteus-Style Virtual FPGA Bench
+- **Free-Place Canvas (Proteus workflow)**: Drag as many components as you like from the left palette onto a dark dot-grid canvas — 1/2/4/8-way DIP switch banks, momentary push buttons, green/red LEDs, large 7-segment display digits, 7447 BCD-to-7-segment decoder ICs, hex LCD readouts, clock generators (1–100 MHz), and VCC/GND power terminals. Move by dragging, delete with ✕ or `Del`.
+- **Entity Ports as FPGA Pins**: The active entity renders as an FPGA chip whose pins are *editable terminals* — scalar and vector ports (`sw(7 downto 0)`) are parsed and rendered with full bit-level pin expansion.
+- **Proteus Net-Label Architecture**: Every terminal has an editable net label; terminals sharing the **same net label are electrically connected** (standard Proteus net-labeling paradigm). Grouped vector nets and individual scalar bit pins connect cleanly and reliably. `VCC` and `GND` terminals tie input nets to logic '1' and '0'.
+- **7447 BCD Decoder IC**: Standalone BCD-to-7-segment decoder chip component with 4-bit BCD input terminals (`A`, `B`, `C`, `D`) and active-low segment output terminals (`a` through `g`), allowing direct modular wiring to 7-segment digits.
+- **Drawing Tools & Annotations**: Paint-style interactive drawing of lines (with angle and length drag handles), rectangles, circles, and rich text labels directly onto the schematic canvas with hollow hit-testing for interior component selection.
+- **Marquee Multi-Selection & Canvas Pan/Zoom**: Click-and-drag rubberband selection box on empty canvas areas to select, group, and move multiple components simultaneously. Full mouse wheel pan and zoom controls for expansive schematic designs.
+- **Real GHDL Simulation, Not Animation**: **Run** generates an exact board testbench around the entity (constant drivers for wired inputs, free-running clock for the clock port, `generic map` with generic-aware widths), compiles and elaborates it with GHDL, simulates clock cycles with `--vcd` and lights LEDs, segments and pin indicators with actual real hardware logic values.
+- **Interactive Live Mode & Cycle-Stepping**: Switches and buttons stay clickable while simulating; in **Live mode** clock cycles step automatically and switch flips update the state instantly with fast cached incremental runs.
+- **Persistent Bench**: The complete bench configuration — components, positions, terminal net names, switch states, drawn shapes, annotations, and canvas pan/zoom coordinates — auto-saves to `localStorage` on every interaction and is fully restored when reopening the lab.
+- **Transparent Board Log**: The exact `ghdl -a / -e / -r` command sequence for each board run is shown in the collapsible log panel.
+- Open with the **Board Lab** toolbar button or **F8**; close with **Esc**.
+
+
 ---
 
 ## Prerequisites & Installation
@@ -121,6 +135,7 @@ Like modern FPGA/ASIC EDA suites (Vivado / ISE), the left sidebar provides hiera
 | <kbd>Alt</kbd> + <kbd>1</kbd> | **Toggle Navigator** | Expand or collapse the Project Navigator sidebar |
 | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> or <kbd>F5</kbd> | **Simulate** | Elaborate active testbench, run simulation, and open Waveform Viewer |
 | <kbd>Ctrl</kbd> + <kbd>B</kbd> or <kbd>F7</kbd> | **Check Syntax** | Analyze all project design and simulation sources with GHDL |
+| <kbd>F8</kbd> | **Board Lab** | Open / close the virtual FPGA board (simulate entity on switches, LEDs, 7-segment) |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | **Save Project** | Save all open files and project configuration to disk |
 | <kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | **Format Code** | Auto-indent and format the active VHDL source buffer |
 | <kbd>Ctrl</kbd> + <kbd>/</kbd> | **Toggle Comment** | Comment or uncomment selected lines (`--`) |
@@ -192,8 +207,13 @@ python test_suite.py
   [PASS] T25 VHDL Laboratory branding, Light/Monokai/Solarized themes, templates modal & status display
   [PASS] T26 In-App Update Patch system, safety guards & instructor packager
   [PASS] T27 IEEE-1364 VCD trace download endpoint & GTKWave integration
+  [PASS] T28 Parenthesis-aware entity port parser preserves all scalar and vector ports
+  [PASS] T29 Board Lab virtual FPGA simulation, thread safety and responsive endpoints
+  [PASS] T30 Online GitHub Auto-Update & Proteus-style Board Lab with Vector Breakdown
+  [PASS] T31 Board Lab shapes, text annotations, momentary button, and board bench persistence
+  [PASS] T32 Board Lab fast incremental simulation, cycle-stepping, and shape delete persistence
 ------------------------------------------------------------------------
- RESULT: 27/27 tests passed -- 100% VERIFIED
+ RESULT: 32/32 tests passed -- 100% VERIFIED
 ```
 
 > **Note on Test Portability:** Test `T18` verifies RAR archive creation and export. On host systems where WinRAR (`Rar.exe` or `rar`) is not installed (such as Linux/macOS environments), `T18` is gracefully skipped (`[SKIP]`) without breaking the test run.

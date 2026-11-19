@@ -1,0 +1,1656 @@
+/* ==========================================================================
+   Board Lab — Proteus-style FPGA board simulator (dark edition)
+   Dark theme consistent with the app's charcoal / green-lab palette.
+   Left palette + free-place canvas + name-based wiring (net labels).
+   ========================================================================== */
+
+.bl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+  flex-direction: column;
+  background:
+    radial-gradient(1100px 600px at 80% -10%, rgba(46, 230, 107, 0.05), transparent 60%),
+    radial-gradient(900px 500px at -5% 110%, rgba(95, 211, 240, 0.04), transparent 55%),
+    #0a0e14;
+  color: #d5dfe9;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+.bl-overlay.bl-open { display: flex; }
+
+.bl-overlay *,
+.bl-overlay *::before,
+.bl-overlay *::after { box-sizing: border-box; }
+
+/* ---------------------------------------------------------------- topbar */
+.bl-top {
+  height: 52px;
+  flex: 0 0 52px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid #1e2733;
+  background: #0d1117;
+}
+
+.bl-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #e8f0f7;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+}
+
+.bl-brand .bl-chip {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(46, 230, 107, 0.12);
+  border: 1px solid rgba(46, 230, 107, 0.35);
+  color: #2ee66b;
+  display: grid;
+  place-items: center;
+}
+
+.bl-nav { display: flex; align-items: center; gap: 4px; margin-left: 4px; }
+
+.bl-nav button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8b99ab;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.bl-nav button:hover { background: rgba(46, 230, 107, 0.09); color: #bfe8cd; }
+
+.bl-top-right { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+
+.bl-entity-chip {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11.5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid #1e2733;
+  color: #8b99ab;
+  background: #10151d;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* pill buttons */
+.bl-btn {
+  appearance: none;
+  border: 1px solid #1e2733;
+  background: #131a24;
+  color: #d5dfe9;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+.bl-btn:hover { transform: translateY(-1px); border-color: #2a3547; background: #161e29; }
+.bl-btn:active { transform: translateY(0); }
+
+.bl-btn--run {
+  background: rgba(46, 230, 107, 0.14);
+  border-color: rgba(46, 230, 107, 0.45);
+  color: #7ff2a8;
+  font-weight: 600;
+}
+.bl-btn--run:hover { background: rgba(46, 230, 107, 0.2); border-color: rgba(46, 230, 107, 0.6); }
+
+.bl-btn--ghost { background: transparent; border-color: transparent; color: #8b99ab; }
+.bl-btn--ghost:hover { background: #131a24; color: #d5dfe9; }
+
+.bl-btn[disabled] { opacity: .5; cursor: not-allowed; transform: none; }
+
+.bl-btn .bl-spin {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(127, 242, 168, .3);
+  border-top-color: #7ff2a8;
+  border-radius: 50%;
+  animation: bl-rot .7s linear infinite;
+  display: none;
+}
+.bl-btn.is-busy .bl-spin { display: inline-block; }
+.bl-btn.is-busy .bl-run-dot { display: none; }
+@keyframes bl-rot { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------- main deck */
+.bl-main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- palette */
+.bl-palette {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid #1e2733;
+  background: #0d1117;
+}
+
+.bl-palette-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #5c6b7d;
+}
+
+.bl-palette-hint {
+  padding: 0 14px 10px;
+  font-size: 11px;
+  color: #5c6b7d;
+}
+
+.bl-palette-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 10px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-content: start;
+}
+
+.bl-palette-list::-webkit-scrollbar { width: 7px; }
+.bl-palette-list::-webkit-scrollbar-thumb { background: #1e2733; border-radius: 4px; }
+
+.bl-pal-item {
+  border: 1px solid #1e2733;
+  border-radius: 10px;
+  background: #10151d;
+  padding: 9px 6px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  user-select: none;
+  transition: border-color .15s ease, transform .15s ease, background .15s ease;
+}
+.bl-pal-item:hover { border-color: rgba(46, 230, 107, .45); background: #131a24; transform: translateY(-1px); }
+.bl-pal-item:active { cursor: grabbing; }
+
+.bl-pal-item .bl-pal-ico {
+  width: 44px; height: 34px;
+  display: grid;
+  place-items: center;
+  color: #8b99ab;
+}
+
+.bl-pal-item .bl-pal-lab {
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: center;
+  color: #8b99ab;
+}
+
+.bl-pal-item.is-dragging { opacity: .45; }
+
+.bl-pal-item.is-active-tool {
+  background: rgba(95, 211, 240, 0.18) !important;
+  border-color: #5fd3f0 !important;
+  box-shadow: 0 0 10px rgba(95, 211, 240, 0.35);
+  transform: translateY(-1px);
+}
+.bl-pal-item.is-active-tool .bl-pal-lab {
+  color: #5fd3f0 !important;
+  font-weight: 600;
+}
+.bl-pal-item.is-active-tool .bl-pal-ico {
+  color: #5fd3f0 !important;
+}
+
+/* ------------------------------------------------------------ stage/canvas */
+.bl-stage {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1000px 500px at 60% -5%, rgba(95, 211, 240, 0.035), transparent 55%),
+    #0a0e14;
+  overflow: hidden;
+}
+
+.bl-stage-head {
+  position: absolute;
+  top: 12px; left: 14px; right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.bl-kicker {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: #5c6b7d;
+  background: rgba(13, 17, 23, .85);
+  border: 1px solid #1e2733;
+  padding: 4px 11px;
+  border-radius: 999px;
+}
+
+.bl-stage-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #d5dfe9;
+  background: rgba(13, 17, 23, .85);
+  border: 1px solid #1e2733;
+  padding: 3px 12px;
+  border-radius: 10px;
+}
+
+.bl-stage-tip {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: #5c6b7d;
+  background: rgba(13, 17, 23, .85);
+  border: 1px dashed #1e2733;
+  padding: 3px 11px;
+  border-radius: 999px;
+}
+
+/* dot-grid canvas */
+.bl-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  margin: 52px 14px 6px;
+  border: 1px solid #1a222d;
+  border-radius: 14px;
+  background-color: #0b0f16;
+  background-image: radial-gradient(rgba(139, 153, 171, 0.13) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.bl-canvas.is-panning {
+  cursor: grab !important;
+}
+.bl-canvas.is-panning-active {
+  cursor: grabbing !important;
+}
+
+/* Pan & Zoom Canvas World */
+.bl-canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: auto;
+}
+
+/* Rubber-band Marquee selection box */
+.bl-marquee-box {
+  position: absolute;
+  border: 1.5px dashed #2ee66b;
+  background: rgba(46, 230, 107, 0.12);
+  box-shadow: 0 0 10px rgba(46, 230, 107, 0.2);
+  pointer-events: none;
+  z-index: 9999;
+  display: none;
+  border-radius: 2px;
+}
+
+/* Zoom controls in statusbar */
+.bl-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #101620;
+  border: 1px solid #1f2c3c;
+  border-radius: 6px;
+  padding: 1px 3px;
+  user-select: none;
+}
+
+.bl-zoom-btn {
+  background: transparent;
+  border: none;
+  color: #8b99ab;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  width: 22px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s ease;
+}
+
+.bl-zoom-btn:hover {
+  background: rgba(95, 211, 240, 0.15);
+  color: #5fd3f0;
+}
+
+.bl-zoom-level {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 9.5px;
+  color: #5fd3f0;
+  min-width: 36px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0 3px;
+}
+
+.bl-zoom-level:hover {
+  text-decoration: underline;
+}
+
+.bl-zoom-fit {
+  width: auto;
+  padding: 0 5px;
+  font-size: 9px;
+}
+
+.bl-zoom-origin {
+  width: auto !important;
+  padding: 0 6px !important;
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  color: #5fd3f0 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.bl-zoom-origin:hover {
+  background: rgba(95, 211, 240, 0.2) !important;
+  color: #fff !important;
+}
+
+.bl-log-btn {
+  width: auto !important;
+  padding: 0 7px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  height: 20px;
+  background: #101620;
+  border: 1px solid #1f2c3c;
+  border-radius: 6px;
+  color: #8b99ab;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all .12s ease;
+}
+.bl-log-btn:hover {
+  background: rgba(95, 211, 240, 0.15);
+  color: #5fd3f0;
+  border-color: rgba(95, 211, 240, 0.4);
+}
+.bl-log-btn.active {
+  background: rgba(95, 211, 240, 0.2);
+  color: #5fd3f0;
+  border-color: #5fd3f0;
+}
+
+/* Origin marker (0,0) */
+.bl-origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 1;
+  user-select: none;
+}
+.bl-origin-svg {
+  position: absolute;
+  left: -30px;
+  top: -30px;
+  overflow: visible;
+  pointer-events: none;
+}
+.bl-origin-marker.is-pulsing .bl-origin-svg circle:first-of-type {
+  animation: blOriginPulse 0.8s ease-out;
+}
+@keyframes blOriginPulse {
+  0% { r: 6; stroke-width: 3.5; stroke: #fff; filter: drop-shadow(0 0 10px #5fd3f0); }
+  50% { r: 18; stroke-width: 2; stroke: #5fd3f0; filter: drop-shadow(0 0 16px #5fd3f0); }
+  100% { r: 6; stroke-width: 1.4; stroke: #5fd3f0; filter: none; }
+}
+
+/* 7447 / BCD to 7-Segment Decoder IC */
+.bl-decoder-ic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(180deg, #131a24 0%, #0d121a 100%);
+  border: 1.5px solid #28394e;
+  border-radius: 6px;
+  padding: 6px 8px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+  min-width: 140px;
+  cursor: grab;
+  user-select: none;
+}
+
+.bl-decoder-title {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #5fd3f0;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.bl-decoder-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.bl-decoder-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bl-decoder-tag {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8px;
+  color: #8b99ab;
+}
+
+.bl-decoder-screen {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #2ee66b;
+  background: #080c12;
+  border: 1px solid #182332;
+  border-radius: 4px;
+  padding: 2px 6px;
+  text-align: center;
+  min-width: 24px;
+}
+
+.bl-canvas.is-drawing-mode {
+  cursor: crosshair !important;
+}
+.bl-canvas.is-drawing-mode * {
+  cursor: crosshair !important;
+}
+
+.bl-draw-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.bl-draw-hud {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(13, 17, 23, 0.92);
+  border: 1px solid #5fd3f0;
+  color: #5fd3f0;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  z-index: 101;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+.bl-wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bl-wires path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* empty hint */
+.bl-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 30px;
+  background: rgba(10, 14, 20, .55);
+  backdrop-filter: blur(3px);
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity .25s ease;
+}
+.bl-empty.bl-hide { opacity: 0; }
+
+.bl-empty .bl-empty-title {
+  font-size: 21px;
+  font-weight: 600;
+  color: #d5dfe9;
+}
+
+.bl-empty p { max-width: 520px; margin: 0; font-size: 13px; color: #8b99ab; line-height: 1.6; }
+
+/* ----------------------------------------------------------- components */
+.bl-comp {
+  position: absolute;
+  z-index: 3;
+  cursor: grab;
+  user-select: none;
+}
+
+.bl-comp.is-drag { cursor: grabbing; z-index: 5; }
+
+/* Borderless & Compact for all components except FPGA */
+.bl-comp:not(.is-fpga) {
+  background: transparent;
+  border: 1px dashed transparent;
+  box-shadow: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: border-color .15s ease, background-color .15s ease;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bl-comp:not(.is-fpga):hover {
+  border-color: rgba(46, 230, 107, .3);
+  background: rgba(16, 22, 30, 0.45);
+}
+
+.bl-comp:not(.is-fpga).is-selected {
+  border-color: rgba(46, 230, 107, .65);
+  background: rgba(16, 22, 30, 0.65);
+}
+
+/* Shapes are purely graphic and hollow in the center to allow selecting inner components */
+.bl-comp.is-shape,
+.bl-comp.is-shape:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.bl-comp.is-shape .bl-shape-handle,
+.bl-comp.is-shape .bl-comp-del-btn {
+  pointer-events: auto !important;
+}
+
+/* Offset delete button for lines to keep clean margin */
+.bl-comp.is-shape.is-line-comp .bl-comp-del-btn {
+  top: auto;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+/* Green glowing halo contour when shape is selected */
+.bl-comp.is-shape.is-selected {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.bl-comp.is-shape.is-selected .bl-shape-comp svg {
+  filter: drop-shadow(0 0 5px rgba(46, 230, 107, 0.85)) drop-shadow(0 0 1.5px #2ee66b);
+}
+
+.bl-comp.is-shape.is-selected .bl-shape-handle {
+  display: block;
+  background: #2ee66b;
+  box-shadow: 0 0 6px rgba(46, 230, 107, 0.9);
+}
+
+.bl-comp.is-text.is-selected {
+  background: rgba(95, 211, 240, 0.08) !important;
+  border: 1px dashed rgba(95, 211, 240, 0.5) !important;
+}
+
+.bl-comp:not(.is-fpga) .bl-comp-head {
+  display: none;
+}
+
+/* Subtle delete button on hover */
+.bl-comp:not(.is-fpga) .bl-comp-del-btn {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #141b24;
+  border: 1px solid #283749;
+  color: #8b99ab;
+  font-size: 10px;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.bl-comp:not(.is-fpga):hover .bl-comp-del-btn,
+.bl-comp:not(.is-fpga).is-hovered .bl-comp-del-btn,
+.bl-comp:not(.is-fpga).is-selected .bl-comp-del-btn {
+  display: flex !important;
+}
+
+.bl-comp:not(.is-fpga) .bl-comp-del-btn:hover {
+  background: #ff4757;
+  color: #fff;
+  border-color: #ff4757;
+}
+
+/* Compact net tags underneath component */
+.bl-comp-tags-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.bl-tag-pill {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8.5px;
+  color: #7fd3ed;
+  background: rgba(47, 111, 181, 0.18);
+  border: 1px solid rgba(47, 111, 181, 0.4);
+  padding: 0 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.bl-tag-pill.is-hi {
+  color: #2ee66b;
+  background: rgba(46, 230, 107, 0.2);
+  border-color: rgba(46, 230, 107, 0.6);
+  box-shadow: 0 0 5px rgba(46, 230, 107, 0.4);
+}
+
+/* FPGA chip retains its classic frame */
+.bl-comp.is-fpga {
+  border-radius: 12px;
+  background: linear-gradient(160deg, #16202a 0%, #101820 100%);
+  border: 1px solid #234451;
+  box-shadow: 0 10px 26px -14px rgba(0, 0, 0, .8);
+  padding: 10px 12px;
+  max-width: 360px;
+}
+.bl-comp.is-fpga.is-drag { border-color: rgba(46, 230, 107, .5); }
+.bl-comp.is-fpga.is-selected { border-color: rgba(46, 230, 107, .55); box-shadow: 0 0 0 1px rgba(46, 230, 107, .25), 0 10px 26px -14px rgba(0,0,0,.8); }
+
+.bl-comp-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bl-comp-name {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: #5c6b7d;
+  text-transform: uppercase;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bl-comp-del {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #5c6b7d;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.bl-comp-del:hover { color: #ff6b6b; background: rgba(255, 107, 107, .12); }
+
+/* terminals (net labels) */
+.bl-term {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #0d1117;
+  border: 1px solid #1e2733;
+  border-radius: 6px;
+  padding: 1px 4px;
+  cursor: text;
+}
+
+.bl-term .bl-term-tag {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #2a3547;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.4) inset;
+  flex: 0 0 7px;
+  transition: background .12s ease, box-shadow .12s ease;
+}
+
+.bl-term.is-hi .bl-term-tag {
+  background: #2ee66b;
+  box-shadow: 0 0 7px 1px rgba(46, 230, 107, .8);
+}
+
+.bl-term input {
+  width: 52px;
+  border: 0;
+  background: transparent;
+  color: #bfe0ff;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  padding: 1px 2px;
+  outline: none;
+  text-transform: lowercase;
+}
+.bl-term input:focus { color: #fff; }
+
+.bl-term.is-named { border-color: #2f6fb5; background: rgba(47, 111, 181, .12); }
+.bl-term.is-power-vcc .bl-term-tag { background: #c8402f; box-shadow: 0 0 7px 1px rgba(200,64,47,.8); }
+.bl-term.is-power-gnd .bl-term-tag { background: #8b99ab; }
+.bl-term input.is-power-vcc { color: #ff9d8f; }
+.bl-term input.is-power-gnd { color: #c3ccd8; }
+
+.bl-comp-terms {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* DIP switch body */
+.bl-dip-body {
+  display: flex;
+  gap: 7px;
+  padding: 6px 4px 2px;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.bl-dip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.bl-dip .bl-dip-num {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8.5px;
+  color: #5c6b7d;
+}
+
+.bl-dip .bl-dip-switch {
+  width: 16px; height: 34px;
+  border-radius: 4px;
+  background: #0d1117;
+  box-shadow: 0 0 0 1px #1e2733, 0 2px 5px -1px rgba(0,0,0,.6) inset;
+  position: relative;
+  transition: background .12s ease;
+}
+
+.bl-dip .bl-dip-switch::after {
+  content: "";
+  position: absolute;
+  left: 2px; right: 2px;
+  top: 18px;
+  height: 13px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #d8dee9, #9aa7b8);
+  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+  transition: top .13s cubic-bezier(.34, 1.4, .64, 1), background .13s ease;
+}
+
+.bl-dip.is-on .bl-dip-switch::after { top: 2px; background: linear-gradient(180deg, #7ff2a8, #2ee66b); }
+.bl-dip.is-on .bl-dip-switch { background: #10241a; }
+
+.bl-dip .bl-dip-val {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8.5px;
+  color: #8b99ab;
+}
+
+/* push button switch */
+.bl-push-sch {
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 4px;
+  display: grid;
+  place-items: center;
+}
+
+.bl-push-svg {
+  display: block;
+}
+
+.bl-push-contact {
+  transition: transform .06s cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+.bl-comp.is-on .bl-push-contact,
+.bl-push.is-on .bl-push-contact {
+  transform: translateY(6px);
+}
+
+.bl-comp.is-on .bl-push-bar,
+.bl-push.is-on .bl-push-bar {
+  stroke: #7ff2a8;
+  filter: drop-shadow(0 0 4px rgba(70, 217, 108, 0.8));
+}
+
+.bl-push-cap {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3a4553, #1c242e 75%);
+  box-shadow: 0 3px 8px -2px rgba(0,0,0,.7), 0 0 0 2px #1e2733;
+  transition: transform .07s ease, box-shadow .07s ease, background .07s ease;
+}
+
+.bl-push.is-on .bl-push-cap,
+.bl-comp .bl-push:active .bl-push-cap {
+  transform: translateY(1.5px) scale(.95);
+  background: radial-gradient(circle at 35% 30%, #7ff2a8, #1ea64f 75%);
+  box-shadow: 0 1px 4px -1px rgba(0,0,0,.7), 0 0 0 2px rgba(46,230,107,.5), 0 0 12px rgba(46,230,107,.45);
+}
+
+/* LED with diode schematic */
+.bl-led-bulb {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #192430, #0c1218 80%);
+  box-shadow: 0 0 0 2px #203042, 0 3px 8px rgba(0,0,0,0.6);
+  display: grid;
+  place-items: center;
+  transition: background .12s ease, box-shadow .12s ease;
+}
+
+.bl-led-sch {
+  display: block;
+}
+
+.bl-led-sch .bl-diode-lead {
+  stroke: #5c6b7d;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  transition: stroke .12s ease;
+}
+
+.bl-led-sch .bl-diode-tri {
+  fill: #131d27;
+  stroke: #5c6b7d;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  transition: fill .12s ease, stroke .12s ease;
+}
+
+.bl-led-sch .bl-diode-bar {
+  stroke: #5c6b7d;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: stroke .12s ease;
+}
+
+.bl-led-sch .bl-diode-ray-line {
+  stroke: #5c6b7d;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  transition: stroke .12s ease;
+}
+
+.bl-led-sch .bl-diode-ray-arrow {
+  fill: #5c6b7d;
+  stroke: #5c6b7d;
+  stroke-width: 0.5;
+  transition: fill .12s ease, stroke .12s ease;
+}
+
+/* Green ON */
+.bl-led.is-on .bl-led-bulb {
+  background: radial-gradient(circle at 38% 32%, #18482b, #0b2214 80%);
+  box-shadow: 0 0 0 2px rgba(46, 230, 107, .6), 0 0 18px 4px rgba(46, 230, 107, .65);
+}
+
+.bl-led.is-on .bl-diode-lead {
+  stroke: #7ff2a8;
+  filter: drop-shadow(0 0 2px rgba(46, 230, 107, 0.7));
+}
+
+.bl-led.is-on .bl-diode-tri {
+  fill: #2ee66b;
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(46, 230, 107, 0.9));
+}
+
+.bl-led.is-on .bl-diode-bar {
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(46, 230, 107, 0.9));
+}
+
+.bl-led.is-on .bl-diode-ray-line {
+  stroke: #a6f3b7;
+  filter: drop-shadow(0 0 2px rgba(46, 230, 107, 0.8));
+}
+
+.bl-led.is-on .bl-diode-ray-arrow {
+  fill: #a6f3b7;
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 2px rgba(46, 230, 107, 0.8));
+}
+
+/* Red ON */
+.bl-led[data-color="red"].is-on .bl-led-bulb {
+  background: radial-gradient(circle at 38% 32%, #521a15, #220705 80%);
+  box-shadow: 0 0 0 2px rgba(255, 77, 77, .6), 0 0 18px 4px rgba(255, 77, 77, .65);
+}
+
+.bl-led[data-color="red"].is-on .bl-diode-lead {
+  stroke: #ff9d8f;
+  filter: drop-shadow(0 0 2px rgba(255, 77, 77, 0.7));
+}
+
+.bl-led[data-color="red"].is-on .bl-diode-tri {
+  fill: #ff4d4d;
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(255, 77, 77, 0.9));
+}
+
+.bl-led[data-color="red"].is-on .bl-diode-bar {
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(255, 77, 77, 0.9));
+}
+
+.bl-led[data-color="red"].is-on .bl-diode-ray-line {
+  stroke: #ffb3a3;
+  filter: drop-shadow(0 0 2px rgba(255, 77, 77, 0.8));
+}
+
+.bl-led[data-color="red"].is-on .bl-diode-ray-arrow {
+  fill: #ffb3a3;
+  stroke: #ffffff;
+  filter: drop-shadow(0 0 2px rgba(255, 77, 77, 0.8));
+}
+
+/* single big 7-segment digit */
+.bl-seg-digit {
+  --seg-off: rgba(120, 40, 34, .35);
+  --seg-on: #ff5038;
+  position: relative;
+  width: 64px; height: 100px;
+  background: linear-gradient(180deg, #150d0b, #1e1210);
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px #1e2733, 0 8px 18px -8px rgba(0,0,0,.8);
+  padding: 7px 6px;
+}
+
+.bl-seg-digit svg { display: block; width: 100%; height: 100%; }
+.bl-seg-digit .seg { fill: var(--seg-off); transition: fill .09s ease; }
+.bl-seg-digit .seg.on { fill: var(--seg-on); filter: drop-shadow(0 0 4px rgba(255, 80, 56, .85)); }
+
+.bl-seg-digit .bl-seg-dp {
+  position: absolute;
+  right: 1px; bottom: 2px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--seg-off);
+}
+.bl-seg-digit .bl-seg-dp.on { background: var(--seg-on); box-shadow: 0 0 6px 1px rgba(255,80,56,.75); }
+
+/* LCD hex readout */
+.bl-hex-lcd {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  background: #05080c;
+  color: #7fe3a8;
+  border-radius: 7px;
+  padding: 7px 11px;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px #1e2733, 0 0 20px -4px rgba(127, 227, 168, .4) inset;
+  font-size: 13.5px;
+  letter-spacing: .05em;
+}
+.bl-hex-lcd .bl-hex-bits { color: rgba(127, 227, 168, .8); font-size: 11px; }
+.bl-hex-lcd b { color: #a8f0c4; font-weight: 700; }
+
+/* clock generator */
+.bl-clk-wave {
+  color: #5fd3f0;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+}
+.bl-clk-wave svg { display: block; }
+
+/* power components (VCC / GND) - completely borderless schematic symbol */
+.bl-comp.is-vcc,
+.bl-comp.is-gnd {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.bl-comp.is-vcc:hover,
+.bl-comp.is-gnd:hover,
+.bl-comp.is-vcc.is-selected,
+.bl-comp.is-gnd.is-selected {
+  border: none !important;
+  background: transparent !important;
+}
+.bl-power-sch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  cursor: grab;
+  padding: 2px 4px;
+}
+.bl-power-sch-label {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* text annotation component */
+.bl-text-comp {
+  user-select: none;
+  line-height: 1.35;
+  padding: 3px 6px;
+  cursor: grab;
+  white-space: pre-wrap;
+  word-break: break-word;
+  transition: opacity .15s ease;
+}
+
+/* geometric shape components (line, rect, circle) */
+.bl-shape-comp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+}
+.bl-shape-comp svg {
+  display: block;
+  overflow: visible;
+}
+
+/* Shape resize and angle handles */
+.bl-shape-handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: #5fd3f0;
+  border: 1.5px solid #0d1117;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.8);
+}
+
+.bl-comp.is-selected .bl-shape-handle,
+.bl-comp.is-resizing .bl-shape-handle {
+  display: block;
+}
+
+.bl-shape-handle:hover {
+  transform: translate(-50%, -50%) scale(1.35);
+  background: #7ff2a8;
+}
+
+.bl-shape-handle.handle-start { cursor: move; }
+.bl-shape-handle.handle-end { cursor: crosshair; }
+.bl-shape-handle.handle-se { cursor: se-resize; }
+
+/* FPGA chip component */
+.bl-comp.is-fpga {
+  padding: 10px 12px;
+  background: linear-gradient(160deg, #16202a 0%, #101820 100%);
+  border-color: #234451;
+  max-width: 340px;
+}
+
+.bl-fpga-inner { text-align: center; }
+
+.bl-fpga-title {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 9.5px;
+  letter-spacing: .2em;
+  color: #5fd3f0;
+  text-transform: uppercase;
+}
+
+.bl-fpga-name {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #eef7f5;
+  margin-top: 3px;
+  word-break: break-all;
+}
+
+.bl-fpga-sub {
+  margin-top: 3px;
+  font-size: 10px;
+  color: #5c6b7d;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.bl-comp.is-fpga.is-live .bl-fpga-inner {
+  box-shadow: 0 0 16px rgba(95, 211, 240, 0.35), inset 0 0 12px rgba(95, 211, 240, 0.12);
+  border-color: rgba(95, 211, 240, 0.75);
+  animation: bl-live-intro 0.6s ease-out 1;
+}
+@keyframes bl-live-intro {
+  0% { transform: scale(0.98); opacity: 0.9; }
+  50% { transform: scale(1.01); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+
+.bl-fpga-pins {
+  display: flex;
+  gap: 8px;
+  margin-top: 9px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* statusbar */
+.bl-statusbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px 9px;
+  font-size: 12px;
+  color: #8b99ab;
+}
+
+.bl-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #5c6b7d;
+  flex: 0 0 8px;
+}
+.bl-dot.ok { background: #2ee66b; box-shadow: 0 0 8px rgba(46, 230, 107, .5); }
+.bl-dot.bad { background: #ff6b6b; box-shadow: 0 0 8px rgba(255, 107, 107, .5); }
+.bl-dot.run { background: #5fd3f0; animation: bl-blink 1s ease-in-out infinite; }
+@keyframes bl-blink { 50% { opacity: .35; } }
+
+.bl-sep { width: 1px; height: 14px; background: #1e2733; }
+
+.bl-freq-lab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #8b99ab;
+}
+.bl-freq-lab select {
+  font: inherit;
+  font-size: 12px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  padding: 3px 7px;
+  border-radius: 7px;
+  border: 1px solid #1e2733;
+  background: #10151d;
+  color: #d5dfe9;
+  cursor: pointer;
+}
+
+/* help dropdown */
+.bl-help { position: relative; }
+.bl-help summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #5fd3f0;
+  padding: 3px 11px;
+  border: 1px dashed #234451;
+  border-radius: 999px;
+  user-select: none;
+}
+.bl-help summary::-webkit-details-marker { display: none; }
+.bl-help[open] summary { border-style: solid; }
+.bl-help-body {
+  position: absolute;
+  right: 0;
+  bottom: 26px;
+  width: 340px;
+  background: #10151d;
+  border: 1px solid #1e2733;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,.9);
+  z-index: 40;
+}
+.bl-help-body p { margin: 0 0 8px; font-size: 11.5px; line-height: 1.55; color: #8b99ab; }
+.bl-help-body p:last-child { margin-bottom: 0; }
+.bl-help-body b { color: #d5dfe9; }
+.bl-help-body code {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10.5px;
+  color: #7ff2a8;
+  background: rgba(46, 230, 107, .08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* log panel */
+.bl-logpanel {
+  position: absolute;
+  right: 14px;
+  bottom: 46px;
+  width: min(480px, calc(100% - 28px));
+  background: rgba(13, 17, 23, .94);
+  backdrop-filter: blur(10px);
+  border: 1px solid #1e2733;
+  border-radius: 12px;
+  box-shadow: 0 16px 36px -16px rgba(0,0,0,.85);
+  z-index: 10;
+  overflow: hidden;
+  transition: width 0.18s ease, transform 0.15s ease;
+}
+
+.bl-logpanel.hidden {
+  display: none !important;
+}
+
+.bl-logpanel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #8b99ab;
+  border-bottom: 1px solid #161e29;
+  cursor: pointer;
+  user-select: none;
+}
+.bl-logpanel-head:hover {
+  color: #5fd3f0;
+}
+
+.bl-logpanel-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bl-logpanel-head button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #5c6b7d;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+.bl-logpanel-head button:hover { color: #d5dfe9; }
+
+.bl-log {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10.5px;
+  line-height: 1.65;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  color: #8b99ab;
+}
+.bl-logpanel.is-collapsed .bl-log { display: none; }
+.bl-logpanel.is-collapsed { width: 170px; }
+
+.bl-log .bl-log-cmd { color: #5fd3f0; }
+.bl-log .bl-log-err { color: #ff6b6b; }
+.bl-log .bl-log-ok { color: #7ff2a8; }
+.bl-log .bl-log-dim { color: #5c6b7d; }
+
+.bl-log::-webkit-scrollbar { width: 7px; }
+.bl-log::-webkit-scrollbar-thumb { background: #1e2733; border-radius: 4px; }
+
+/* wire glow */
+.bl-wires path.w-on { filter: drop-shadow(0 0 3px rgba(46, 230, 107, .55)); }
+
+/* responsive */
+@media (max-width: 900px) {
+  .bl-main { grid-template-columns: 160px minmax(0, 1fr); }
+  .bl-palette-list { grid-template-columns: 1fr; }
+}
+
+/* ==================== Properties Modal (Proteus Style) ==================== */
+.bl-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 8, 13, 0.78);
+  backdrop-filter: blur(5px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.bl-modal-backdrop.hidden {
+  display: none !important;
+}
+
+.bl-modal-card {
+  background: #101622;
+  border: 1px solid #24354b;
+  border-radius: 12px;
+  width: 720px;
+  max-width: 95vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(46, 230, 107, 0.15);
+  overflow: hidden;
+  animation: blModalPop 0.18s ease-out;
+}
+
+@keyframes blModalPop {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.bl-modal-header {
+  height: 48px;
+  padding: 0 16px;
+  background: #0d121b;
+  border-bottom: 1px solid #1e2b3c;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bl-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bl-modal-icon {
+  font-size: 16px;
+}
+
+.bl-modal-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #8b99ab;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.bl-modal-close:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+.bl-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.bl-props-grid {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 16px;
+}
+
+.bl-schematic-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bl-schematic-label, .bl-pins-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a0b1c5;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.bl-schematic-box {
+  background: #090d14;
+  border: 1px solid #1d2a3a;
+  border-radius: 8px;
+  min-height: 230px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background-image: radial-gradient(rgba(139, 153, 171, 0.08) 1px, transparent 1px);
+  background-size: 14px 14px;
+  position: relative;
+}
+
+.bl-schematic-box svg {
+  max-width: 100%;
+  max-height: 250px;
+}
+
+.bl-schematic-box .sch-pin {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bl-schematic-box .sch-pin:hover, .bl-schematic-box .sch-pin.active {
+  stroke: #2ee66b !important;
+  fill: rgba(46, 230, 107, 0.25) !important;
+}
+
+.bl-pins-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bl-pins-desc {
+  font-size: 11.5px;
+  color: #718295;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.bl-props-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0d121b;
+  border: 1px solid #1d2a3a;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #d5dfe9;
+}
+.bl-props-clock input, .bl-props-clock select {
+  background: #141b26;
+  border: 1px solid #26364a;
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.bl-pins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.bl-pin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0c1017;
+  border: 1px solid #1c2736;
+  border-radius: 6px;
+  padding: 5px 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bl-pin-row:hover, .bl-pin-row.highlighted {
+  border-color: rgba(46, 230, 107, 0.45);
+  background: #0f151f;
+}
+
+.bl-pin-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bl-pin-name {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #d5dfe9;
+  min-width: 48px;
+}
+
+.bl-pin-desc {
+  font-size: 10.5px;
+  color: #607387;
+}
+
+.bl-pin-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bl-pin-input {
+  width: 120px;
+  background: #141c27;
+  border: 1px solid #223245;
+  border-radius: 4px;
+  color: #92d0ff;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  outline: none;
+}
+.bl-pin-input:focus {
+  border-color: #3b82f6;
+  color: #fff;
+  background: #172230;
+}
+
+.bl-modal-footer {
+  height: 48px;
+  padding: 0 16px;
+  background: #0d121b;
+  border-top: 1px solid #1e2b3c;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Vector pin group on FPGA chip */
+.bl-fpga-vec-group {
+  margin-top: 4px;
+  border-top: 1px solid #192734;
+  padding-top: 4px;
+}
+
+.bl-fpga-vec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10px;
+  color: #5fd3f0;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.bl-fpga-vec-header:hover {
+  background: rgba(95, 211, 240, 0.08);
+}
+
+.bl-fpga-vec-bits {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 6px;
+  margin-top: 2px;
+}

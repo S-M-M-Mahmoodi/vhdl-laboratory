@@ -53,6 +53,8 @@
     cursorB: null,          // measurement cursor B position (ns) | null
     paneW: 800, paneH: 400,
     namesScroll: 0,
+    tb_entity: "",
+    doc: null,
     snap: true,             // magnetic snap to nearest transition edge
     showStats: false,       // timing stats panel drawer open/closed
     maximized: false,       // window maximized state
@@ -65,7 +67,7 @@
   ["waveModal", "wvWindow", "wvTitlebar", "wvClose", "wvSub", "wvZoomIn",
    "wvZoomOut", "wvFit", "wvFormat", "wvAutoColors", "wvResetColors",
    "wvClearCursors", "wvUnhideAll", "wvPrevEdge", "wvNextEdge",
-   "wvSavePng", "wvSaveSvg", "wvFilter", "wvNamesInner", "wvWaves", "wvSvg",
+   "wvSavePng", "wvSaveSvg", "wvFilter", "wvNames", "wvNamesInner", "wvWaves", "wvSvg",
    "wvCrossA", "wvCrossB", "wvDeltaRegion", "wvStatusL", "wvGrip",
    "wvMax", "wvMaxIcon", "wvSnap", "wvStats", "wvStatsPanel", "wvStatsTbody",
    "wvCopyStats", "wvSaveCsv", "wvSaveVcd"].forEach(id => {
@@ -201,6 +203,8 @@
     V.cursorA = null;
     V.cursorB = null;
     V.namesScroll = 0;
+    V.tb_entity = (simResult && simResult.tb_entity) || "";
+    V.doc = { tb_entity: V.tb_entity };
     el.wvFilter.value = "";
     applyFilter();
     fitView();
@@ -460,6 +464,16 @@
     return `rgba(${r},${g},${b},${a})`;
   }
 
+  function scrollVertical(delta) {
+    const plotH = Math.max(V.paneH, TOP_PAD + V.visible.length * LANE_H + 8);
+    const maxScroll = Math.max(0, plotH - V.paneH);
+    const old = V.namesScroll;
+    V.namesScroll = Math.min(maxScroll, Math.max(0, V.namesScroll + delta));
+    if (V.namesScroll !== old) {
+      render();
+    }
+  }
+
   /* ------------------------------------------------------------------ *
    * Full render (axis + lanes + names + cursor)
    * ------------------------------------------------------------------ */
@@ -477,13 +491,24 @@
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     const plotH = Math.max(V.paneH, TOP_PAD + V.visible.length * LANE_H + 8);
+    const maxScroll = Math.max(0, plotH - V.paneH);
+    V.namesScroll = Math.min(maxScroll, Math.max(0, V.namesScroll));
 
     // background
     svg.appendChild(svgEl("rect", {
-      x: 0, y: 0, width: V.paneW, height: plotH, fill: PLOT_BG,
+      x: 0, y: 0, width: V.paneW, height: V.paneH, fill: PLOT_BG,
     }));
 
-    // vertical grid + time labels (strictly no negative time)
+    // Clip path for scrollable lanes
+    const defs = svgEl("defs", {});
+    const clip = svgEl("clipPath", { id: "wvLanesClip" });
+    clip.appendChild(svgEl("rect", {
+      x: 0, y: TOP_PAD, width: V.paneW, height: Math.max(0, V.paneH - TOP_PAD)
+    }));
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    // vertical grid lines (spanning whole plot)
     const span = Math.max(0.001, V.t1 - V.t0);
     const step = niceStep(span / 10);
     const gridG = svgEl("g", {});
@@ -493,27 +518,21 @@
       if (t < 0) continue;
       const x = tToPx(t);
       gridG.appendChild(svgEl("line", {
-        x1: x, y1: 0, x2: x, y2: plotH, stroke: GRID, "stroke-width": 1,
+        x1: x, y1: TOP_PAD, x2: x, y2: V.paneH, stroke: GRID, "stroke-width": 1,
       }));
-      const lbl = svgEl("text", {
-        x: x, y: 14, "text-anchor": t === V.t0 ? "start" : "middle",
-        fill: MUTED, "font-family": MONO, "font-size": 10.5,
-      });
-      lbl.textContent = fmtTime(t);
-      gridG.appendChild(lbl);
     }
-    // unit caption on the left of the axis
-    const unit = svgEl("text", {
-      x: 4, y: 14, fill: MUTED, "font-family": MONO, "font-size": 10.5,
-      "font-weight": 700,
+
+    // scrollable lanes group
+    const lanesG = svgEl("g", {
+      transform: `translate(0, ${-V.namesScroll})`,
+      "clip-path": "url(#wvLanesClip)"
     });
-    unit.textContent = "ns";
-    gridG.appendChild(unit);
+    svg.appendChild(lanesG);
 
     // zebra striping across visible lanes
     V.visible.forEach((idx, k) => {
       if (k % 2 === 1) {
-        svg.appendChild(svgEl("rect", {
+        lanesG.appendChild(svgEl("rect", {
           x: 0, y: TOP_PAD + k * LANE_H, width: V.paneW, height: LANE_H,
           fill: "#101826", opacity: 0.45,
         }));
@@ -523,7 +542,7 @@
     // horizontal lane separators
     V.visible.forEach((idx, k) => {
       if (k === 0) return;
-      svg.appendChild(svgEl("line", {
+      lanesG.appendChild(svgEl("line", {
         x1: 0, y1: TOP_PAD + k * LANE_H, x2: V.paneW, y2: TOP_PAD + k * LANE_H,
         stroke: "#141c28", "stroke-width": 1,
       }));
@@ -534,11 +553,37 @@
       const s = V.signals[idx];
       if (!s.tv.length) return;
       if (s.width > 1) {
-        svg.appendChild(busGroup(s.tv, s.color, k, s.width, s.name, s.radix));
+        lanesG.appendChild(busGroup(s.tv, s.color, k, s.width, s.name, s.radix));
       } else {
-        svg.appendChild(scalarPath(s.tv, s.color, k));
+        lanesG.appendChild(scalarPath(s.tv, s.color, k));
       }
     });
+
+    // Top time axis header (drawn above lanes with solid background)
+    const headerG = svgEl("g", {});
+    headerG.appendChild(svgEl("rect", {
+      x: 0, y: 0, width: V.paneW, height: TOP_PAD, fill: PLOT_BG
+    }));
+    headerG.appendChild(svgEl("line", {
+      x1: 0, y1: TOP_PAD, x2: V.paneW, y2: TOP_PAD, stroke: "#1e293b", "stroke-width": 1
+    }));
+    for (let t = startT; t <= V.t1 + 1e-9; t += step) {
+      if (t < 0) continue;
+      const x = tToPx(t);
+      const lbl = svgEl("text", {
+        x: x, y: 14, "text-anchor": t === V.t0 ? "start" : "middle",
+        fill: MUTED, "font-family": MONO, "font-size": 10.5,
+      });
+      lbl.textContent = fmtTime(t);
+      headerG.appendChild(lbl);
+    }
+    const unit = svgEl("text", {
+      x: 4, y: 14, fill: MUTED, "font-family": MONO, "font-size": 10.5,
+      "font-weight": 700,
+    });
+    unit.textContent = "ns";
+    headerG.appendChild(unit);
+    svg.appendChild(headerG);
 
     renderNames();
     renderCursor();
@@ -1049,7 +1094,7 @@
   }
 
   function downloadVcd() {
-    const tb = (V && V.doc && V.doc.tb_entity) ? V.doc.tb_entity : "wave";
+    const tb = (V && (V.tb_entity || (V.doc && V.doc.tb_entity))) ? (V.tb_entity || V.doc.tb_entity) : "wave";
     const filename = `${tb}.vcd`;
     const url = `/api/simulation/vcd?name=${encodeURIComponent(filename)}`;
     const a = document.createElement("a");
@@ -1064,9 +1109,21 @@
   function wireInteractions() {
     el.wvWaves.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const rect = el.wvWaves.getBoundingClientRect();
-      zoomAt(e.clientX - rect.left, e.deltaY > 0 ? 1.18 : 1 / 1.18);
+      const plotH = Math.max(V.paneH, TOP_PAD + V.visible.length * LANE_H + 8);
+      if (e.ctrlKey || plotH <= V.paneH) {
+        const rect = el.wvWaves.getBoundingClientRect();
+        zoomAt(e.clientX - rect.left, e.deltaY > 0 ? 1.18 : 1 / 1.18);
+      } else {
+        scrollVertical(e.deltaY);
+      }
     }, { passive: false });
+
+    if (el.wvNames) {
+      el.wvNames.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        scrollVertical(e.deltaY);
+      }, { passive: false });
+    }
 
     // Right-click = set Cursor B (with magnetic edge snap)
     el.wvWaves.addEventListener("contextmenu", (e) => {
@@ -1081,18 +1138,31 @@
     el.wvWaves.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       const rect = el.wvWaves.getBoundingClientRect();
-      pan = { x: e.clientX - rect.left, t0: V.t0, t1: V.t1, moved: false };
+      pan = {
+        x: e.clientX - rect.left,
+        y: e.clientY,
+        t0: V.t0,
+        t1: V.t1,
+        scroll0: V.namesScroll,
+        moved: false
+      };
       el.wvWaves.classList.add("panning");
     });
     window.addEventListener("mousemove", (e) => {
       if (!pan) return;
       const rect = el.wvWaves.getBoundingClientRect();
       const dx = e.clientX - rect.left - pan.x;
-      if (Math.abs(dx) > 3) pan.moved = true;
+      const dy = e.clientY - pan.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pan.moved = true;
       const dt = dx / V.paneW * (pan.t1 - pan.t0);
       V.t0 = Math.max(0, pan.t0 - dt);
       V.t1 = Math.max(V.t0 + 0.001, pan.t1 - dt);
       clampView();
+
+      const plotH = Math.max(V.paneH, TOP_PAD + V.visible.length * LANE_H + 8);
+      const maxScroll = Math.max(0, plotH - V.paneH);
+      V.namesScroll = Math.min(maxScroll, Math.max(0, pan.scroll0 - dy));
+
       render();
     });
     window.addEventListener("mouseup", (e) => {
@@ -1433,7 +1503,7 @@
   }
 
   function wireWindowChrome() {
-    el.wvClose.addEventListener("click", closeWindow);
+    if (el.wvClose) el.wvClose.addEventListener("click", closeWindow);
 
     if (el.wvMax) {
       el.wvMax.addEventListener("click", toggleMaximize);

@@ -2543,6 +2543,23 @@ function wireEdaMenubar() {
     closeAllMenus();
     $("btnWave")?.click();
   });
+  $("mSimBoard")?.addEventListener("click", () => {
+    closeAllMenus();
+    if (window.BoardLab && typeof window.BoardLab.open === "function") {
+      window.BoardLab.open();
+    } else {
+      const bl = document.getElementById("boardLab");
+      if (bl) bl.classList.add("bl-open");
+    }
+  });
+  $("btnBoardLab")?.addEventListener("click", () => {
+    if (window.BoardLab && typeof window.BoardLab.open === "function") {
+      window.BoardLab.open();
+    } else {
+      const bl = document.getElementById("boardLab");
+      if (bl) bl.classList.add("bl-open");
+    }
+  });
   $("mSimVcd")?.addEventListener("click", () => {
     closeAllMenus();
     const tb = state.project?.active_tb ? state.project.active_tb.replace(/\.vhd$/i, "") : (state.waveDocs?.tb_entity || "wave");
@@ -2564,6 +2581,10 @@ function wireEdaMenubar() {
     closeAllMenus();
     openGuideModal();
     switchGuideTab("guideShortcuts");
+  });
+  $("mHelpCheckUpdate")?.addEventListener("click", () => {
+    closeAllMenus();
+    openCheckUpdateModal();
   });
   $("mHelpUpdate")?.addEventListener("click", () => {
     closeAllMenus();
@@ -2596,6 +2617,9 @@ async function saveProject(notify) {
   p.dependencies = p.dependencies || [];
   p.design_ok = state.design_ok;
   p.tb_ok = state.tb_ok;
+  if (window.BoardLab && typeof window.BoardLab.getBench === "function") {
+    p.board_bench = window.BoardLab.getBench();
+  }
 
   try {
     const r = await fetch("/api/projects/save", {
@@ -3259,6 +3283,167 @@ async function applyUpdatePatch() {
   }
 }
 
+let latestCheckUpdateData = null;
+
+function openCheckUpdateModal() {
+  const modal = $("checkUpdateModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+
+  const loading = $("checkUpdateLoading");
+  const content = $("checkUpdateContent");
+  const banner = $("checkUpdateBanner");
+  const notesWrap = $("checkUpdateNotes");
+  const notesBody = $("checkNotesBody");
+  const btnRun = $("btnRunAutoUpdate");
+  const errEl = $("checkUpdateError");
+  const progress = $("checkUpdateProgress");
+
+  if (loading) loading.classList.remove("hidden");
+  if (content) content.classList.add("hidden");
+  if (errEl) errEl.textContent = "";
+  if (progress) { progress.classList.add("hidden"); progress.textContent = ""; }
+  if (btnRun) btnRun.classList.add("hidden");
+
+  fetch("/api/system/check_update?t=" + Date.now())
+    .then(r => r.json())
+    .then(d => {
+      latestCheckUpdateData = d;
+      if (loading) loading.classList.add("hidden");
+      if (content) content.classList.remove("hidden");
+
+      if (!d.ok) {
+        if (banner) {
+          banner.style.background = "rgba(255, 75, 75, 0.12)";
+          banner.style.border = "1px solid rgba(255, 75, 75, 0.3)";
+          banner.style.color = "#ff8a8a";
+          banner.innerHTML = `<strong>Check Failed:</strong> ${esc(d.message || "Could not connect to GitHub releases.")}`;
+        }
+        return;
+      }
+
+      if (d.has_update) {
+        if (banner) {
+          banner.style.background = "rgba(46, 230, 107, 0.14)";
+          banner.style.border = "1px solid rgba(46, 230, 107, 0.45)";
+          banner.style.color = "#7ff2a8";
+          banner.innerHTML = `<strong>New Version Available:</strong> v${esc(d.latest_version)} (Current: v${esc(d.current_version)})<br><span style="font-size:11.5px;color:#a8c0d8">Release: ${esc(d.release_name || d.tag_name)}</span>`;
+        }
+        if (d.release_notes && notesWrap && notesBody) {
+          notesBody.textContent = d.release_notes;
+          notesWrap.classList.remove("hidden");
+        } else if (notesWrap) {
+          notesWrap.classList.add("hidden");
+        }
+        if (btnRun) {
+          btnRun.textContent = `Update to v${d.latest_version}`;
+          btnRun.disabled = false;
+          btnRun.classList.remove("hidden");
+        }
+      } else {
+        if (banner) {
+          banner.style.background = "rgba(95, 211, 240, 0.12)";
+          banner.style.border = "1px solid rgba(95, 211, 240, 0.35)";
+          banner.style.color = "#7fe3a8";
+          banner.innerHTML = `✓ <strong>Up to date!</strong> VHDL Laboratory v${esc(d.current_version)} is the latest version.`;
+        }
+        if (notesWrap) notesWrap.classList.add("hidden");
+        if (btnRun) btnRun.classList.add("hidden");
+      }
+    })
+    .catch(err => {
+      if (loading) loading.classList.add("hidden");
+      if (content) content.classList.remove("hidden");
+      if (banner) {
+        banner.style.background = "rgba(255, 75, 75, 0.12)";
+        banner.style.border = "1px solid rgba(255, 75, 75, 0.3)";
+        banner.style.color = "#ff8a8a";
+        banner.innerHTML = `<strong>Network Error:</strong> ${esc(err.message || String(err))}`;
+      }
+    });
+}
+
+function closeCheckUpdateModal() {
+  $("checkUpdateModal")?.classList.add("hidden");
+}
+
+async function runAutoUpdate() {
+  if (!latestCheckUpdateData || !latestCheckUpdateData.download_url) return;
+  const btn = $("btnRunAutoUpdate");
+  const progress = $("checkUpdateProgress");
+  const errEl = $("checkUpdateError");
+
+  if (btn) btn.disabled = true;
+  if (errEl) errEl.textContent = "";
+  if (progress) {
+    progress.className = "update-status";
+    progress.textContent = "Downloading release package from GitHub and updating...";
+    progress.classList.remove("hidden");
+  }
+
+  let initialBootId = null;
+  try {
+    const initRes = await fetch("/health?t=" + Date.now(), { cache: "no-store" });
+    if (initRes.ok) {
+      const initData = await initRes.json();
+      initialBootId = initData.boot_id || null;
+    }
+  } catch (_) {}
+
+  try {
+    const resp = await fetch("/api/system/auto_update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ download_url: latestCheckUpdateData.download_url })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.message || "Failed to download and install update.");
+    }
+
+    if (progress) {
+      progress.className = "update-status success";
+      progress.textContent = data.restart_required
+        ? `✓ ${data.message} Restarting backend server...`
+        : `✓ ${data.message} Refreshing IDE...`;
+    }
+    toast(data.restart_required ? "Update applied! Restarting backend..." : "Update applied! Refreshing IDE...");
+
+    let reloaded = false;
+    const maxRetries = 35;
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      try {
+        const h = await fetch("/health?t=" + Date.now(), { cache: "no-store" });
+        if (h.ok) {
+          const hData = await h.json();
+          if (data.restart_required && initialBootId && hData.boot_id === initialBootId) {
+            continue;
+          }
+          reloaded = true;
+          if (progress) progress.textContent = "✓ Server active! Reloading...";
+          setTimeout(() => {
+            window.location.href = window.location.origin + window.location.pathname + "?v=" + Date.now();
+          }, 250);
+          return;
+        }
+      } catch (_) {
+        if (progress && data.restart_required) {
+          progress.textContent = `Restarting server... (${i + 1}/${maxRetries})`;
+        }
+      }
+    }
+    if (!reloaded) {
+      if (errEl) errEl.textContent = "Server restart could not be verified automatically. Please restart run_webapp.bat manually.";
+      if (btn) btn.disabled = false;
+    }
+  } catch (err) {
+    if (errEl) errEl.textContent = String(err.message || err);
+    if (progress) progress.classList.add("hidden");
+    if (btn) btn.disabled = false;
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * UI Event Wiring
  * ------------------------------------------------------------------ */
@@ -3441,12 +3626,18 @@ function wire() {
   $("tbModal")?.addEventListener("click", (e) => { if (e.target === $("tbModal")) $("tbModal").classList.add("hidden"); });
   $("rarModal")?.addEventListener("click", (e) => { if (e.target === $("rarModal")) closeRarModal(); });
   $("updateModal")?.addEventListener("click", (e) => { if (e.target === $("updateModal")) closeUpdateModal(); });
+  $("checkUpdateModal")?.addEventListener("click", (e) => { if (e.target === $("checkUpdateModal")) closeCheckUpdateModal(); });
 
   // Update Patch modal wiring
   $("btnWelcomeUpdate")?.addEventListener("click", openUpdateModal);
   $("updateClose")?.addEventListener("click", closeUpdateModal);
   $("updateCancel")?.addEventListener("click", closeUpdateModal);
   $("btnApplyUpdate")?.addEventListener("click", applyUpdatePatch);
+
+  // Online Auto-Update modal wiring
+  $("checkUpdateClose")?.addEventListener("click", closeCheckUpdateModal);
+  $("checkUpdateCancel")?.addEventListener("click", closeCheckUpdateModal);
+  $("btnRunAutoUpdate")?.addEventListener("click", runAutoUpdate);
 
   const updateDrop = $("updateDropzone");
   const updateInput = $("updateFileInput");
@@ -3557,3 +3748,8 @@ function wire() {
     }
   } catch (_) { /* backend offline */ }
 })();
+
+/* Expose internals for the Board Lab module (loaded before app.js). */
+window.state = state;
+window.fileDocs = fileDocs;
+window.parseEntityPortsJS = parseEntityPorts;

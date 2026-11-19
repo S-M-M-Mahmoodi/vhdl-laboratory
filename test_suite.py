@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-test_suite.py -- End-to-end verification for VHDL Laboratory
+test_suite.py -- End-to-end verification for VHDL Laboratory (32 Test Cases)
 =========================================================================
 Copyright (c) 2026 S.M.M.Mahmoodi
 Author & Lead Maintainer: S.M.M.Mahmoodi
@@ -26,6 +26,28 @@ The suite drives the real Flask application through its full HTTP stack
       private files (app.py, test_suite.py, workspace/) are NOT exposed
   T9  Project manager: save -> list -> load -> delete roundtrip
   T10 Check Syntax with target="tb" analyzes design + testbench together
+  T11 Structural VHDL compilation with component dependencies
+  T12 Multi-file project navigator compilation & simulation
+  T13 Check syntax handles projects with no active testbench gracefully
+  T14 Simulate without testbench returns clean JSON error (no HTTP 500)
+  T15 Directory-based project saves individual on-disk .vhd files & project.json
+  T16 VHDL standard flag (--std=08 vs --std=93c) passed correctly to GHDL
+  T17 /api/components categorizes modules by project & supports multiple files
+  T18 /api/projects/export_rar saves to custom path & downloads valid RAR archive
+  T19 GHDL report note/warning parsed into infos/warnings (not errors)
+  T20 Multi-file simulation validates tb_entity against IDENT_RE
+  T21 Component dependency resolution handles folder projects without design_code
+  T22 Thread-safe simulation & check_syntax via SIM_LOCK
+  T23 Advanced waveform viewer features (snap, stats, CSV, maximize, persistence)
+  T24 Desktop EDA Menubar & Quick-Access Toolbar
+  T25 VHDL Laboratory branding, Light/Monokai/Solarized themes, templates modal & status display
+  T26 In-App Update Patch system, safety guards & instructor packager
+  T27 IEEE-1364 VCD trace download endpoint & GTKWave integration
+  T28 Parenthesis-aware entity port parser preserves all scalar and vector ports
+  T29 Board Lab virtual FPGA simulation, thread safety and responsive endpoints
+  T30 Online GitHub Auto-Update & Proteus-style Board Lab with Vector Breakdown
+  T31 Board Lab shapes, text annotations, momentary button, and board bench persistence
+  T32 Board Lab fast incremental simulation, cycle-stepping, and shape delete persistence
 
 Exit code 0 = all tests passed, 1 = failure, 2 = environment problem
 (ghdl / flask / vcdvcd missing).
@@ -1416,6 +1438,383 @@ end entity fifo;
     js = client.get("/assets/js/app.js").get_data(as_text=True)
     assert "parseEntityPorts" in js
     assert "depth++" in js and "depth--" in js, "app.js missing parenthesis-aware balance counter"
+
+
+@check("T29 Board Lab virtual FPGA simulation, thread safety and responsive endpoints")
+def t29(client):
+    import inspect
+    import board_lab
+
+    # 1. Thread-safety: verify board_simulate holds SIM_LOCK
+    source = inspect.getsource(board_lab.board_simulate)
+    assert "with h.SIM_LOCK:" in source, "board_simulate must acquire SIM_LOCK for thread-safe workspace access"
+
+    # 2. Functional test: simulate switch_to_seg
+    code = """
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity switch_to_seg is
+  port (
+    sw      : in  std_logic_vector(7 downto 0);
+    en      : in  std_logic;
+    hex_hi  : out std_logic_vector(3 downto 0);
+    hex_lo  : out std_logic_vector(3 downto 0);
+    led_on  : out std_logic
+  );
+end entity switch_to_seg;
+
+architecture Behavioral of switch_to_seg is
+begin
+  hex_hi <= sw(7 downto 4) when en = '1' else (others => '0');
+  hex_lo <= sw(3 downto 0) when en = '1' else (others => '0');
+  led_on <= en;
+end architecture Behavioral;
+"""
+    payload = {
+        "files": [{
+            "filename": "switch_to_seg.vhd",
+            "entity": "switch_to_seg",
+            "type": "design",
+            "code": code,
+        }],
+        "entity": "switch_to_seg",
+        "board_tb": {
+            "inputs": {
+                "sw": "10101111",  # 0xAF: hi=10 (A), lo=15 (F)
+                "en": "1",
+            },
+            "clock_port": None,
+        },
+        "stop_time": "500 ns",
+        "standard": "08",
+    }
+    r = client.post("/api/board/simulate", json=payload)
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.get_data(as_text=True)}"
+    data = r.get_json()
+    assert data["ok"] is True
+    assert "hex_hi" in data["outputs"] and data["outputs"]["hex_hi"]["value"] == 10
+    assert "hex_lo" in data["outputs"] and data["outputs"]["hex_lo"]["value"] == 15
+    assert "led_on" in data["outputs"] and data["outputs"]["led_on"]["value"] == 1
+
+    # Test with en = '0'
+    payload["board_tb"]["inputs"]["en"] = "0"
+    r2 = client.post("/api/board/simulate", json=payload)
+    assert r2.status_code == 200
+    d2 = r2.get_json()
+    assert d2["outputs"]["hex_hi"]["value"] == 0
+    assert d2["outputs"]["hex_lo"]["value"] == 0
+    assert d2["outputs"]["led_on"]["value"] == 0
+
+    # 3. 6-Thread concurrent simulation stress test for SIM_LOCK thread-safety
+    import concurrent.futures
+
+    def sim_worker(val):
+        p = {
+            "files": [{
+                "filename": "switch_to_seg.vhd",
+                "entity": "switch_to_seg",
+                "type": "design",
+                "code": code,
+            }],
+            "entity": "switch_to_seg",
+            "board_tb": {
+                "inputs": {
+                    "sw": format(val, "08b"),
+                    "en": "1",
+                },
+                "clock_port": None,
+            },
+            "stop_time": "500 ns",
+            "standard": "08",
+        }
+        res = client.post("/api/board/simulate", json=p)
+        return val, res.status_code, res.get_json()
+
+    vals = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+        results = list(ex.map(sim_worker, vals))
+
+    for val, status, data in results:
+        assert status == 200, f"Concurrent simulation status {status}"
+        assert data["ok"] is True
+        hi = data["outputs"]["hex_hi"]["value"]
+        lo = data["outputs"]["hex_lo"]["value"]
+        assert hi == (val >> 4), f"Expected hi {val >> 4}, got {hi}"
+        assert lo == (val & 0xF), f"Expected lo {val & 0xF}, got {lo}"
+
+    # Verify board_save_bench uses SIM_LOCK synchronization
+    import app as app_module
+    save_bench_src = inspect.getsource(app_module.board_save_bench)
+    assert "with SIM_LOCK:" in save_bench_src, "board_save_bench must acquire SIM_LOCK for thread-safe metadata writing"
+
+    # 4. UI integration checks
+    html = client.get("/").get_data(as_text=True)
+    assert "id=\"btnBoardLab\"" in html
+    assert "id=\"mSimBoard\"" in html
+    assert "board_lab.js" in html
+    assert "board_lab.css" in html
+
+    bl_js = client.get("/assets/js/board_lab.js").get_data(as_text=True)
+    assert "syncOpenFiles" in bl_js, "board_lab.js must sync open editor buffers"
+    assert "getStoreKey" in bl_js, "board_lab.js must use per-project storage keys"
+
+
+@check("T30 Online GitHub Auto-Update & Proteus-style Board Lab with Vector Breakdown")
+def t30(client):
+    import unittest.mock as mock
+    import io
+    import zipfile
+    import json
+
+    # 1. Online check update endpoint
+    mock_gh_response = {
+        "tag_name": "v1.1.0",
+        "name": "VHDL Laboratory 1.1.0",
+        "body": "Added online updates and Proteus-style board lab with vector support.",
+        "published_at": "2026-11-15T22:00:00Z",
+        "html_url": "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/tag/v1.1.0",
+        "assets": [
+            {
+                "name": "vhdl_lab_patch_1.1.0.zip",
+                "browser_download_url": "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v1.1.0/patch.zip"
+            }
+        ]
+    }
+
+    class MockResp:
+        def __init__(self, data_bytes, status=200):
+            self.data = data_bytes
+            self.status = status
+        def read(self):
+            return self.data
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    # Test check_update with update available
+    with mock.patch("urllib.request.urlopen", return_value=MockResp(json.dumps(mock_gh_response).encode("utf-8"))):
+        r = client.get("/api/system/check_update")
+        assert r.status_code == 200, f"Expected 200, got {r.status_code}"
+        d = r.get_json()
+        assert d["ok"] is True
+        assert d["has_update"] is True
+        assert d["latest_version"] == "1.1.0"
+        assert d["download_url"] == "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v1.1.0/patch.zip"
+
+    # Test check_update when already up to date
+    mock_gh_current = dict(mock_gh_response, tag_name="v1.0.0")
+    with mock.patch("urllib.request.urlopen", return_value=MockResp(json.dumps(mock_gh_current).encode("utf-8"))):
+        r = client.get("/api/system/check_update")
+        assert r.status_code == 200
+        d = r.get_json()
+        assert d["ok"] is True
+        assert d["has_update"] is False
+
+    # 2. Test auto_update with SSRF validation and mock download
+    # SSRF guard checks: reject HTTP, loopback, private IP, and untrusted domains
+    r_bad_proto = client.post("/api/system/auto_update", json={"download_url": "http://evil.com/patch.zip", "force": True})
+    assert r_bad_proto.status_code == 400
+    assert "Security error" in r_bad_proto.get_json()["message"]
+
+    r_ssrf_lan = client.post("/api/system/auto_update", json={"download_url": "http://192.168.1.10/evil.zip", "force": True})
+    assert r_ssrf_lan.status_code == 400
+    assert "Security error" in r_ssrf_lan.get_json()["message"]
+
+    r_ssrf_local = client.post("/api/system/auto_update", json={"download_url": "http://127.0.0.1:5000/api/projects/list", "force": True})
+    assert r_ssrf_local.status_code == 400
+    assert "Security error" in r_ssrf_local.get_json()["message"]
+
+    r_other_repo = client.post("/api/system/auto_update", json={"download_url": "https://github.com/attacker/malicious/releases/download/v1/bad.zip", "force": True})
+    assert r_other_repo.status_code == 400
+    assert "Security error" in r_other_repo.get_json()["message"]
+
+    # Valid GitHub release download URL
+    valid_dl_url = "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v1.1.0/patch.zip"
+    patch_bio = io.BytesIO()
+    with zipfile.ZipFile(patch_bio, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("test_update_file.txt", "auto-updated successfully")
+    patch_bytes = patch_bio.getvalue()
+
+    with mock.patch("urllib.request.urlopen", return_value=MockResp(patch_bytes)):
+        r = client.post("/api/system/auto_update", json={"download_url": valid_dl_url, "force": True})
+        assert r.status_code == 200, f"auto_update failed: {r.get_data(as_text=True)}"
+        d = r.get_json()
+        assert d["ok"] is True
+        assert "test_update_file.txt" in d["updated_files"]
+
+    # Clean up test_update_file.txt
+    test_file = PROJECT_DIR / "test_update_file.txt"
+    if test_file.is_file():
+        test_file.unlink()
+
+    # 3. UI checks: index.html
+    html = client.get("/").get_data(as_text=True)
+    assert "mHelpCheckUpdate" in html, "Help menu must contain Check for Updates Online"
+    assert "checkUpdateModal" in html, "Online auto-update modal must exist"
+    assert "blPropsModal" in html, "Board Lab Properties modal must exist"
+    assert "blBtnQuickWire" not in html, "Quick wire button must be removed"
+    assert "blWires" not in html, "Curved SVG wires must be removed"
+
+    # 4. Board Lab script checks: board_lab.js
+    bl_js = client.get("/assets/js/board_lab.js").get_data(as_text=True)
+    assert "openPropsModal" in bl_js, "Must include openPropsModal for double-click configuration"
+    assert "getSegSchematicSVG" in bl_js, "Must include 7-segment schematic symbol"
+    assert "getDipSchematicSVG" in bl_js, "Must include DIP switch schematic symbol"
+    assert "getLedSchematicSVG" in bl_js, "Must include LED schematic symbol"
+    assert "getClkSchematicSVG" in bl_js, "Must include clock generator schematic symbol"
+    assert "bl-fpga-vec-group" in bl_js, "Must expand FPGA vector ports into individual bit pins"
+    # Bug 1 verification: vector slice grouping logic in collectNets
+    assert "netToPinIndices" in bl_js, "Must support group vector net slicing without naive slice(-1)"
+    # Bug 4 & 5 verification: push button listener cleanup and LED c.lit persistence
+    assert "c.lit = on" in bl_js, "Must maintain c.lit state in applyOutputs across canvas re-renders"
+    assert "window.addEventListener(\"mouseup\"" in bl_js, "Must provide global mouseup listener in wire"
+
+
+@check("T31 Board Lab shapes, text annotations, momentary button, and board bench persistence")
+def t31(client):
+    # 1. Test project saving with board_bench and /api/board/save_bench endpoint
+    p_name = "test_bench_persist_proj"
+    proj_payload = {
+        "project": {
+            "name": p_name,
+            "entity": "top",
+            "files": [{"filename": "top.vhd", "entity": "top", "code": "entity top is end;"}],
+            "board_bench": {
+                "comps": [{"type": "text", "x": 100, "y": 100, "text": "My Schematic"}],
+                "fpgaPos": {"x": 50, "y": 50},
+                "pinNames": {"clk": "clk_in"}
+            }
+        }
+    }
+    r = client.post("/api/projects/save", json=proj_payload)
+    assert r.status_code == 200 and r.get_json()["ok"] is True
+
+    # Check that project load returns board_bench
+    r_load = client.post("/api/projects/load", json={"name": p_name})
+    assert r_load.status_code == 200
+    loaded = r_load.get_json()
+    assert loaded["project"].get("board_bench") is not None
+    assert loaded["project"]["board_bench"]["comps"][0]["text"] == "My Schematic"
+
+    # Test /api/board/save_bench endpoint directly
+    updated_bench = {
+        "comps": [
+            {"type": "shape_rect", "x": 10, "y": 20, "width": 150, "height": 90, "stroke": "#5fd3f0"},
+            {"type": "push", "x": 50, "y": 60, "terms": [{"key": "a", "name": "btn1"}]}
+        ],
+        "fpgaPos": {"x": 80, "y": 80},
+        "pinNames": {"btn": "btn1"}
+    }
+    r_bench = client.post("/api/board/save_bench", json={"project": p_name, "board_bench": updated_bench})
+    assert r_bench.status_code == 200 and r_bench.get_json()["ok"] is True
+
+    r_reload = client.post("/api/projects/load", json={"name": p_name})
+    assert r_reload.status_code == 200
+    reloaded = r_reload.get_json()
+    assert reloaded["project"]["board_bench"]["comps"][0]["type"] == "shape_rect"
+
+    # Clean up test project
+    client.post("/api/projects/delete", json={"name": p_name})
+
+    # 2. Check UI elements in index.html
+    html = client.get("/").get_data(as_text=True)
+    assert "blPropsTextOptions" in html, "Text options container must exist in Properties modal"
+    assert "blPropsShapeOptions" in html, "Shape options container must exist in Properties modal"
+    assert "blPropsBusOptions" in html, "Bus options container must exist in Properties modal"
+    assert "blBtnAutoBus" in html, "Auto-assign bus button must exist"
+    assert "blDrawOverlay" in html, "Drawing overlay SVG must exist"
+    assert "blDrawHud" in html, "Drawing HUD tooltip must exist"
+
+    # 3. Check board_lab.js for shapes, momentary push button, and text component
+    bl_js = client.get("/assets/js/board_lab.js").get_data(as_text=True)
+    assert "shape_line" in bl_js, "Line shape must be defined in board_lab.js"
+    assert "shape_rect" in bl_js, "Rectangle shape must be defined in board_lab.js"
+    assert "shape_circle" in bl_js, "Circle shape must be defined in board_lab.js"
+    assert "bl-text-comp" in bl_js, "Text component must be implemented in board_lab.js"
+    assert "bl-push-sch" in bl_js, "Momentary push button must use schematic switch"
+    assert "bl-diode-tri" in bl_js, "LED must render internal diode schematic symbol"
+    assert "getBench" in bl_js, "getBench method must be exposed"
+    assert "dbl-click to wire" not in bl_js, "dbl-click to wire badge must be removed"
+    assert "wireCanvasDrawing" in bl_js, "Must include Paint-style interactive canvas drawing"
+    assert "setActiveTool" in bl_js, "Must support palette tool selection mode"
+    assert "bl-shape-handle" in bl_js, "Shapes must have interactive canvas handles"
+    assert "handle-end" in bl_js, "Line must have end-handle to adjust length and angle"
+
+    # 4. Check board_lab.css for shapes and borderless VCC/GND
+    bl_css = client.get("/assets/css/board_lab.css").get_data(as_text=True)
+    assert ".bl-comp.is-vcc" in bl_css
+    assert "border: none !important" in bl_css, "VCC and GND must be strictly borderless"
+    assert ".bl-push-sch" in bl_css
+    assert ".bl-text-comp" in bl_css
+    assert ".bl-shape-comp" in bl_css
+    assert ".bl-canvas.is-drawing-mode" in bl_css, "Must style drawing cursor"
+    assert ".bl-shape-handle" in bl_css, "Must style shape handles"
+
+
+@check("T32 Board Lab fast incremental simulation, cycle-stepping, and shape delete persistence")
+def t32(client):
+    # 1. Test sequential counting progression and incremental cache speed
+    with open("projects/Counter/counter.vhd", "r", encoding="utf-8") as f:
+        counter_code = f.read()
+
+    files = [{"filename": "counter.vhd", "entity": "Counter", "type": "design", "code": counter_code}]
+    payload = {
+        "files": files,
+        "entity": "Counter",
+        "board_tb": {
+            "inputs": {"clear": "0"},
+            "clock_port": "clk",
+            "clock_half_period_ns": 25.0,
+            "clock_cycles": 1,
+        },
+        "standard": "08"
+    }
+
+    # Cycle 1
+    r1 = client.post("/api/board/simulate", json=payload)
+    assert r1.status_code == 200 and r1.get_json()["ok"] is True
+    assert r1.get_json()["outputs"]["data_out"]["value"] == 1
+
+    # Cycle 2 (cached, fast)
+    payload["board_tb"]["clock_cycles"] = 2
+    import time
+    t0 = time.time()
+    r2 = client.post("/api/board/simulate", json=payload)
+    elapsed_ms = (time.time() - t0) * 1000
+    assert r2.status_code == 200 and r2.get_json()["ok"] is True
+    assert r2.get_json()["outputs"]["data_out"]["value"] == 2
+    # Verify fast response time (<350ms vs original ~650ms)
+    assert elapsed_ms < 400, f"Cached simulation was too slow: {elapsed_ms:.1f}ms"
+
+    # Cycle 3 and Cycle 4
+    payload["board_tb"]["clock_cycles"] = 3
+    r3 = client.post("/api/board/simulate", json=payload)
+    assert r3.get_json()["outputs"]["data_out"]["value"] == 3
+
+    payload["board_tb"]["clock_cycles"] = 4
+    r4 = client.post("/api/board/simulate", json=payload)
+    assert r4.get_json()["outputs"]["data_out"]["value"] == 4
+
+    # Test clear active resets count to 0
+    payload["board_tb"]["inputs"]["clear"] = "1"
+    payload["board_tb"]["clock_cycles"] = 10
+    r_clr = client.post("/api/board/simulate", json=payload)
+    assert r_clr.get_json()["outputs"]["data_out"]["value"] == 0
+
+    # 2. Check CSS for delete button persistence
+    bl_css = client.get("/assets/css/board_lab.css").get_data(as_text=True)
+    assert ".is-selected .bl-comp-del-btn" in bl_css, "Delete button must stay visible when component is selected"
+    assert ".is-hovered .bl-comp-del-btn" in bl_css, "Delete button must support hover bridge"
+
+    # 3. Check JS for live loop and cycle tracking
+    bl_js = client.get("/assets/js/board_lab.js").get_data(as_text=True)
+    assert "startLiveLoop" in bl_js, "Must include periodic live simulation loop"
+    assert "stopLiveLoop" in bl_js, "Must cleanly stop live loop"
+    assert "clockCycles" in bl_js, "Must track simulation clock cycles"
+    assert "getLiveIntervalMs" in bl_js, "Must calculate live interval from clock frequency"
 
 
 # ---------------------------------------------------------------------------

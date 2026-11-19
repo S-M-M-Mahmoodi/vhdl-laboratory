@@ -1,0 +1,365 @@
+{
+  "name": "Counter",
+  "folder": "Counter",
+  "standard": "08",
+  "author": "",
+  "created": "2026-11-13",
+  "updated": "2026-11-19T22:36:46.251828+00:00",
+  "entity": "Counter",
+  "top_entity": "Counter",
+  "active_tb": "tb_counter.vhd",
+  "architecture": "Behavioral",
+  "ports": [
+    {
+      "name": "clk",
+      "dir": "in",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    },
+    {
+      "name": "clear",
+      "dir": "in",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    },
+    {
+      "name": "data_out",
+      "dir": "out",
+      "vector": true,
+      "msb": 3,
+      "lsb": 0
+    }
+  ],
+  "files": [
+    {
+      "filename": "counter.vhd",
+      "entity": "Counter",
+      "type": "design",
+      "architecture": "Behavioral",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : Counter\n-- Module Name  : counter.vhd\n-- Entity Name  : Counter\n-- Architecture : Behavioral\n-- Target Lang  : VHDL-2008\n-- Description  : 4-bit synchronous binary counter with active-high synchronous clear\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity Counter is\n  port (\n    clk       : in  std_logic;\n    clear     : in  std_logic;\n    data_out  : out std_logic_vector(3 downto 0)\n  );\nend entity Counter;\n\narchitecture Behavioral of Counter is\n  signal count : unsigned(3 downto 0) := (others => '0');\nbegin\n\n  process (clk)\n  begin\n    if rising_edge(clk) then\n      if clear = '1' then\n        count <= (others => '0');\n      else\n        count <= count + 1;\n      end if;\n    end if;\n  end process;\n\n  data_out <= std_logic_vector(count);\n\nend architecture Behavioral;\n",
+      "ports": [
+        {
+          "dir": "in",
+          "lsb": null,
+          "msb": null,
+          "name": "clk",
+          "vector": false
+        },
+        {
+          "dir": "in",
+          "lsb": null,
+          "msb": null,
+          "name": "clear",
+          "vector": false
+        },
+        {
+          "dir": "out",
+          "lsb": 0,
+          "msb": 3,
+          "name": "data_out",
+          "vector": true
+        }
+      ]
+    },
+    {
+      "filename": "tb_counter.vhd",
+      "entity": "tb_Counter",
+      "type": "simulation",
+      "architecture": "sim",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : Counter\n-- Testbench For: Counter\n-- Module Name  : tb_counter.vhd\n-- Entity Name  : tb_Counter\n-- Target Lang  : VHDL-2008\n-- Description  : Verification testbench for 4-bit binary counter\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_Counter is\nend entity tb_Counter;\n\narchitecture sim of tb_Counter is\n\n  -- clock period constant (20 ns period = 50 MHz for fast simulation)\n  constant CLK_PERIOD : time := 20 ns;\n\n  -- internal interconnect & stimulus signals\n  signal clk       : std_logic := '0';\n  signal clear     : std_logic := '0';\n  signal data_out  : std_logic_vector(3 downto 0) := (others => '0');\n\nbegin\n\n  -- instantiate unit under test (DUT)\n  dut : entity work.Counter\n    port map (\n      clk       => clk,\n      clear     => clear,\n      data_out  => data_out\n    );\n\n  -- clock generator process\n  clk_gen : process\n  begin\n    clk <= '0';\n    wait for CLK_PERIOD / 2;\n    clk <= '1';\n    wait for CLK_PERIOD / 2;\n  end process clk_gen;\n\n  -- stimulus process: drive verification stimulus vectors\n  stim_proc : process\n  begin\n    -- initial reset state\n    clear <= '1';\n    wait for 40 ns;\n    clear <= '0';\n\n    -- allow counter to increment through all 16 states (0 to 15)\n    wait for 340 ns;\n\n    -- test synchronous clear pulse\n    clear <= '1';\n    wait for 20 ns;\n    clear <= '0';\n\n    -- continue counting after reset\n    wait for 100 ns;\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+      "ports": []
+    }
+  ],
+  "dependencies": [],
+  "design_code": "----------------------------------------------------------------------------------\n-- Project Name : Counter\n-- Module Name  : counter.vhd\n-- Entity Name  : Counter\n-- Architecture : Behavioral\n-- Target Lang  : VHDL-2008\n-- Description  : 4-bit synchronous binary counter with active-high synchronous clear\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity Counter is\n  port (\n    clk       : in  std_logic;\n    clear     : in  std_logic;\n    data_out  : out std_logic_vector(3 downto 0)\n  );\nend entity Counter;\n\narchitecture Behavioral of Counter is\n  signal count : unsigned(3 downto 0) := (others => '0');\nbegin\n\n  process (clk)\n  begin\n    if rising_edge(clk) then\n      if clear = '1' then\n        count <= (others => '0');\n      else\n        count <= count + 1;\n      end if;\n    end if;\n  end process;\n\n  data_out <= std_logic_vector(count);\n\nend architecture Behavioral;\n",
+  "tb_code": "----------------------------------------------------------------------------------\n-- Project Name : Counter\n-- Testbench For: Counter\n-- Module Name  : tb_counter.vhd\n-- Entity Name  : tb_Counter\n-- Target Lang  : VHDL-2008\n-- Description  : Verification testbench for 4-bit binary counter\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_Counter is\nend entity tb_Counter;\n\narchitecture sim of tb_Counter is\n\n  -- clock period constant (20 ns period = 50 MHz for fast simulation)\n  constant CLK_PERIOD : time := 20 ns;\n\n  -- internal interconnect & stimulus signals\n  signal clk       : std_logic := '0';\n  signal clear     : std_logic := '0';\n  signal data_out  : std_logic_vector(3 downto 0) := (others => '0');\n\nbegin\n\n  -- instantiate unit under test (DUT)\n  dut : entity work.Counter\n    port map (\n      clk       => clk,\n      clear     => clear,\n      data_out  => data_out\n    );\n\n  -- clock generator process\n  clk_gen : process\n  begin\n    clk <= '0';\n    wait for CLK_PERIOD / 2;\n    clk <= '1';\n    wait for CLK_PERIOD / 2;\n  end process clk_gen;\n\n  -- stimulus process: drive verification stimulus vectors\n  stim_proc : process\n  begin\n    -- initial reset state\n    clear <= '1';\n    wait for 40 ns;\n    clear <= '0';\n\n    -- allow counter to increment through all 16 states (0 to 15)\n    wait for 340 ns;\n\n    -- test synchronous clear pulse\n    clear <= '1';\n    wait for 20 ns;\n    clear <= '0';\n\n    -- continue counting after reset\n    wait for 100 ns;\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+  "design_ok": true,
+  "tb_ok": true,
+  "board_bench": {
+    "comps": [
+      {
+        "type": "clk",
+        "x": 344,
+        "y": 46,
+        "on": {},
+        "terms": [
+          {
+            "key": "out",
+            "name": "clk"
+          }
+        ],
+        "freq": 10,
+        "unit": "Hz",
+        "busNet": "",
+        "color": null,
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "push",
+        "x": 344,
+        "y": 146,
+        "on": {
+          "0": 0
+        },
+        "terms": [
+          {
+            "key": "a",
+            "name": "clear"
+          },
+          {
+            "key": "com",
+            "name": "vcc"
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "vcc",
+        "x": 1471,
+        "y": -6,
+        "on": {},
+        "terms": [
+          {
+            "key": "p",
+            "name": "vcc",
+            "fixed": true
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 0,
+        "dx": 140,
+        "dy": 0
+      },
+      {
+        "type": "led",
+        "x": 799,
+        "y": 80,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": "data_out(0)"
+          },
+          {
+            "key": "k",
+            "name": "gnd"
+          }
+        ],
+        "busNet": "",
+        "color": "green",
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "led",
+        "x": 796,
+        "y": 167,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": "data_out(1)"
+          },
+          {
+            "key": "k",
+            "name": "gnd"
+          }
+        ],
+        "busNet": "",
+        "color": "green",
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "led",
+        "x": 804,
+        "y": 237,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": "data_out(2)"
+          },
+          {
+            "key": "k",
+            "name": "gnd"
+          }
+        ],
+        "busNet": "",
+        "color": "green",
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "led",
+        "x": 799,
+        "y": 329,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": "data_out(3)"
+          },
+          {
+            "key": "k",
+            "name": "gnd"
+          }
+        ],
+        "busNet": "",
+        "color": "green",
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "gnd",
+        "x": 1525,
+        "y": -11,
+        "on": {},
+        "terms": [
+          {
+            "key": "p",
+            "name": "gnd",
+            "fixed": true
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 0,
+        "dx": 140,
+        "dy": 0
+      },
+      {
+        "type": "seg",
+        "x": 1156,
+        "y": 13,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": "A"
+          },
+          {
+            "key": "b",
+            "name": "B"
+          },
+          {
+            "key": "c",
+            "name": "C"
+          },
+          {
+            "key": "d",
+            "name": "D"
+          },
+          {
+            "key": "e",
+            "name": "E"
+          },
+          {
+            "key": "f",
+            "name": "F"
+          },
+          {
+            "key": "g",
+            "name": "G"
+          },
+          {
+            "key": "dp",
+            "name": ""
+          },
+          {
+            "key": "bus",
+            "name": ""
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 4,
+        "dx": 4,
+        "dy": 0
+      },
+      {
+        "type": "bcd7seg",
+        "x": 944,
+        "y": 15,
+        "on": {},
+        "terms": [
+          {
+            "key": "d3",
+            "name": "data_out(3)"
+          },
+          {
+            "key": "d2",
+            "name": "data_out(2)"
+          },
+          {
+            "key": "d1",
+            "name": "data_out(1)"
+          },
+          {
+            "key": "d0",
+            "name": "data_out(0)"
+          },
+          {
+            "key": "a",
+            "name": "A"
+          },
+          {
+            "key": "b",
+            "name": "B"
+          },
+          {
+            "key": "c",
+            "name": "C"
+          },
+          {
+            "key": "d",
+            "name": "D"
+          },
+          {
+            "key": "e",
+            "name": "E"
+          },
+          {
+            "key": "f",
+            "name": "F"
+          },
+          {
+            "key": "g",
+            "name": "G"
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 4,
+        "dx": 4,
+        "dy": 0
+      }
+    ],
+    "fpgaPos": {
+      "x": 55,
+      "y": 35
+    },
+    "pinNames": {
+      "clear": "clear",
+      "clk": "clk",
+      "data_out": "data_out",
+      "data_out(0)": "data_out(0)",
+      "data_out(1)": "data_out(1)",
+      "data_out(2)": "data_out(2)",
+      "data_out(3)": "data_out(3)"
+    }
+  }
+}

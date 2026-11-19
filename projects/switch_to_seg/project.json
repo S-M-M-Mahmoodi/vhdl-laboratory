@@ -1,0 +1,310 @@
+{
+  "name": "switch_to_seg",
+  "folder": "switch_to_seg",
+  "standard": "08",
+  "author": "",
+  "created": "2026-11-14",
+  "updated": "2026-11-18T20:43:47Z",
+  "entity": "switch_to_seg",
+  "top_entity": "switch_to_seg",
+  "active_tb": "tb_switch_to_seg.vhd",
+  "architecture": "Behavioral",
+  "ports": [
+    {
+      "name": "sw",
+      "dir": "in",
+      "vector": false,
+      "msb": null,
+      "lsb": null
+    },
+    {
+      "name": "data_out",
+      "dir": "out",
+      "vector": true,
+      "msb": 7,
+      "lsb": 0
+    }
+  ],
+  "files": [
+    {
+      "filename": "switch_to_seg.vhd",
+      "entity": "switch_to_seg",
+      "type": "design",
+      "architecture": "Behavioral",
+      "code": "--------------------------------------------------------------------------------\n-- Project Name : switch_to_seg\n-- Entity Name  : switch_to_seg\n-- Description  : Board Lab demo - two DIP-switch nibbles shown on a\n--                7-segment display as two hex digits, with an enable LED.\n--------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity switch_to_seg is\n  port (\n    sw      : in  std_logic_vector(7 downto 0);  -- 8 DIP switches\n    en      : in  std_logic;                     -- push button: display enable\n    hex_hi  : out std_logic_vector(3 downto 0);  -- high digit  (sw 7..4)\n    hex_lo  : out std_logic_vector(3 downto 0);  -- low digit   (sw 3..0)\n    led_on  : out std_logic                      -- lights when enabled\n  );\nend entity switch_to_seg;\n\narchitecture Behavioral of switch_to_seg is\nbegin\n  hex_hi <= sw(7 downto 4) when en = '1' else (others => '0');\n  hex_lo <= sw(3 downto 0) when en = '1' else (others => '0');\n  led_on <= en;\nend architecture Behavioral;",
+      "ports": [
+        {
+          "dir": "in",
+          "lsb": 0,
+          "msb": 7,
+          "name": "sw",
+          "vector": false
+        },
+        {
+          "dir": "out",
+          "lsb": 0,
+          "msb": 7,
+          "name": "data_out",
+          "vector": true
+        }
+      ]
+    },
+    {
+      "filename": "tb_switch_to_seg.vhd",
+      "entity": "tb_switch_to_seg",
+      "type": "simulation",
+      "architecture": "sim",
+      "code": "----------------------------------------------------------------------------------\n-- Project Name : switch_to_seg\n-- Testbench For: switch_to_seg\n-- Module Name  : tb_switch_to_seg.vhd\n-- Entity Name  : tb_switch_to_seg\n-- Target Lang  : VHDL-2008\n-- Description  : Verification testbench for DIP switch to 7-segment display decoder\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_switch_to_seg is\nend entity tb_switch_to_seg;\n\narchitecture sim of tb_switch_to_seg is\n\n  -- internal interconnect & stimulus signals\n  signal sw      : std_logic_vector(7 downto 0) := (others => '0');\n  signal en      : std_logic := '0';\n  signal hex_hi  : std_logic_vector(3 downto 0) := (others => '0');\n  signal hex_lo  : std_logic_vector(3 downto 0) := (others => '0');\n  signal led_on  : std_logic := '0';\n\nbegin\n\n  -- instantiate unit under test (DUT)\n  dut : entity work.switch_to_seg\n    port map (\n      sw      => sw,\n      en      => en,\n      hex_hi  => hex_hi,\n      hex_lo  => hex_lo,\n      led_on  => led_on\n    );\n\n  -- stimulus process: drive verification stimulus vectors\n  stim_proc : process\n  begin\n    -- Test 1: Initial state (switches=0x00, disabled -> outputs=0, led=0)\n    en <= '0';\n    sw <= x\"00\";\n    wait for 40 ns;\n\n    -- Test 2: Set switches to 0x5A while disabled (outputs must remain 0)\n    sw <= x\"5A\";\n    wait for 40 ns;\n\n    -- Test 3: Enable display (en='1') -> hex_hi=5, hex_lo=A, led_on=1\n    en <= '1';\n    wait for 50 ns;\n\n    -- Test 4: Change switches to 0x3F (3 on hex_hi, F on hex_lo)\n    sw <= x\"3F\";\n    wait for 50 ns;\n\n    -- Test 5: Change switches to 0xC8 (C on hex_hi, 8 on hex_lo)\n    sw <= x\"C8\";\n    wait for 50 ns;\n\n    -- Test 6: Change switches to 0x9B (9 on hex_hi, B on hex_lo)\n    sw <= x\"9B\";\n    wait for 50 ns;\n\n    -- Test 7: Release push button / disable (en='0') -> display turns off\n    en <= '0';\n    wait for 40 ns;\n\n    -- Test 8: Re-enable with 0x7E\n    sw <= x\"7E\";\n    en <= '1';\n    wait for 60 ns;\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+      "ports": []
+    }
+  ],
+  "dependencies": [],
+  "design_code": "--------------------------------------------------------------------------------\n-- Project Name : switch_to_seg\n-- Entity Name  : switch_to_seg\n-- Description  : Board Lab demo - two DIP-switch nibbles shown on a\n--                7-segment display as two hex digits, with an enable LED.\n--------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity switch_to_seg is\n  port (\n    sw      : in  std_logic_vector(7 downto 0);  -- 8 DIP switches\n    en      : in  std_logic;                     -- push button: display enable\n    hex_hi  : out std_logic_vector(3 downto 0);  -- high digit  (sw 7..4)\n    hex_lo  : out std_logic_vector(3 downto 0);  -- low digit   (sw 3..0)\n    led_on  : out std_logic                      -- lights when enabled\n  );\nend entity switch_to_seg;\n\narchitecture Behavioral of switch_to_seg is\nbegin\n  hex_hi <= sw(7 downto 4) when en = '1' else (others => '0');\n  hex_lo <= sw(3 downto 0) when en = '1' else (others => '0');\n  led_on <= en;\nend architecture Behavioral;",
+  "tb_code": "----------------------------------------------------------------------------------\n-- Project Name : switch_to_seg\n-- Testbench For: switch_to_seg\n-- Module Name  : tb_switch_to_seg.vhd\n-- Entity Name  : tb_switch_to_seg\n-- Target Lang  : VHDL-2008\n-- Description  : Verification testbench for DIP switch to 7-segment display decoder\n----------------------------------------------------------------------------------\n\nlibrary ieee;\nuse ieee.std_logic_1164.all;\nuse ieee.numeric_std.all;\n\nentity tb_switch_to_seg is\nend entity tb_switch_to_seg;\n\narchitecture sim of tb_switch_to_seg is\n\n  -- internal interconnect & stimulus signals\n  signal sw      : std_logic_vector(7 downto 0) := (others => '0');\n  signal en      : std_logic := '0';\n  signal hex_hi  : std_logic_vector(3 downto 0) := (others => '0');\n  signal hex_lo  : std_logic_vector(3 downto 0) := (others => '0');\n  signal led_on  : std_logic := '0';\n\nbegin\n\n  -- instantiate unit under test (DUT)\n  dut : entity work.switch_to_seg\n    port map (\n      sw      => sw,\n      en      => en,\n      hex_hi  => hex_hi,\n      hex_lo  => hex_lo,\n      led_on  => led_on\n    );\n\n  -- stimulus process: drive verification stimulus vectors\n  stim_proc : process\n  begin\n    -- Test 1: Initial state (switches=0x00, disabled -> outputs=0, led=0)\n    en <= '0';\n    sw <= x\"00\";\n    wait for 40 ns;\n\n    -- Test 2: Set switches to 0x5A while disabled (outputs must remain 0)\n    sw <= x\"5A\";\n    wait for 40 ns;\n\n    -- Test 3: Enable display (en='1') -> hex_hi=5, hex_lo=A, led_on=1\n    en <= '1';\n    wait for 50 ns;\n\n    -- Test 4: Change switches to 0x3F (3 on hex_hi, F on hex_lo)\n    sw <= x\"3F\";\n    wait for 50 ns;\n\n    -- Test 5: Change switches to 0xC8 (C on hex_hi, 8 on hex_lo)\n    sw <= x\"C8\";\n    wait for 50 ns;\n\n    -- Test 6: Change switches to 0x9B (9 on hex_hi, B on hex_lo)\n    sw <= x\"9B\";\n    wait for 50 ns;\n\n    -- Test 7: Release push button / disable (en='0') -> display turns off\n    en <= '0';\n    wait for 40 ns;\n\n    -- Test 8: Re-enable with 0x7E\n    sw <= x\"7E\";\n    en <= '1';\n    wait for 60 ns;\n\n    wait; -- simulation complete\n  end process stim_proc;\n\nend architecture sim;\n",
+  "design_ok": false,
+  "tb_ok": false,
+  "board_bench": {
+    "comps": [
+      {
+        "type": "dip",
+        "x": 858,
+        "y": 458,
+        "on": {
+          "0": 1,
+          "1": 1,
+          "2": 1,
+          "3": 1,
+          "4": 0,
+          "5": 1,
+          "6": 0,
+          "7": 1
+        },
+        "terms": [
+          {
+            "key": "b7",
+            "name": "sw(7)"
+          },
+          {
+            "key": "b6",
+            "name": "sw(6)"
+          },
+          {
+            "key": "b5",
+            "name": "sw(5)"
+          },
+          {
+            "key": "b4",
+            "name": "sw(4)"
+          },
+          {
+            "key": "b3",
+            "name": "sw(3)"
+          },
+          {
+            "key": "b2",
+            "name": "sw(2)"
+          },
+          {
+            "key": "b1",
+            "name": "sw(1)"
+          },
+          {
+            "key": "b0",
+            "name": "sw(0)"
+          },
+          {
+            "key": "com",
+            "name": "vcc"
+          }
+        ],
+        "busNet": "sw",
+        "color": null,
+        "width": 8,
+        "dx": 8,
+        "dy": 0
+      },
+      {
+        "type": "push",
+        "x": 387,
+        "y": 33,
+        "on": {
+          "0": 0
+        },
+        "terms": [
+          {
+            "key": "a",
+            "name": "en"
+          },
+          {
+            "key": "com",
+            "name": "vcc"
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "vcc",
+        "x": 387,
+        "y": 123,
+        "on": {},
+        "terms": [
+          {
+            "key": "p",
+            "name": "vcc",
+            "fixed": true
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 0,
+        "dx": 140,
+        "dy": 0
+      },
+      {
+        "type": "led",
+        "x": 1130,
+        "y": 531,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": "led_on"
+          },
+          {
+            "key": "k",
+            "name": "gnd"
+          }
+        ],
+        "busNet": "",
+        "color": "green",
+        "width": 1,
+        "dx": 1,
+        "dy": 0
+      },
+      {
+        "type": "hex",
+        "x": 1294,
+        "y": 543,
+        "on": {},
+        "terms": [
+          {
+            "key": "bus",
+            "name": "hex_hi"
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 4,
+        "dx": 4,
+        "dy": 0
+      },
+      {
+        "type": "hex",
+        "x": 1458,
+        "y": 550,
+        "on": {},
+        "terms": [
+          {
+            "key": "bus",
+            "name": "hex_lo"
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 4,
+        "dx": 4,
+        "dy": 0
+      },
+      {
+        "type": "gnd",
+        "x": 857,
+        "y": 123,
+        "on": {},
+        "terms": [
+          {
+            "key": "p",
+            "name": "gnd",
+            "fixed": true
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 0,
+        "dx": 140,
+        "dy": 0
+      },
+      {
+        "type": "seg",
+        "x": 607,
+        "y": 314,
+        "on": {},
+        "terms": [
+          {
+            "key": "a",
+            "name": ""
+          },
+          {
+            "key": "b",
+            "name": ""
+          },
+          {
+            "key": "c",
+            "name": ""
+          },
+          {
+            "key": "d",
+            "name": ""
+          },
+          {
+            "key": "e",
+            "name": ""
+          },
+          {
+            "key": "f",
+            "name": ""
+          },
+          {
+            "key": "g",
+            "name": ""
+          },
+          {
+            "key": "dp",
+            "name": ""
+          },
+          {
+            "key": "bus",
+            "name": ""
+          }
+        ],
+        "busNet": "",
+        "color": null,
+        "width": 4,
+        "dx": 4,
+        "dy": 0
+      }
+    ],
+    "fpgaPos": {
+      "x": 23,
+      "y": 13
+    },
+    "pinNames": {
+      "en": "en",
+      "hex_hi": "hex_hi",
+      "hex_lo": "hex_lo",
+      "led_on": "led_on",
+      "sw": "sw",
+      "sw(0)": "sw(0)",
+      "sw(1)": "sw(1)",
+      "sw(2)": "sw(2)",
+      "sw(3)": "sw(3)",
+      "sw(4)": "sw(4)",
+      "sw(5)": "sw(5)",
+      "sw(6)": "sw(6)",
+      "sw(7)": "sw(7)"
+    }
+  }
+}
