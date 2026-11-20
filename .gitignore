@@ -27,6 +27,8 @@ _backup_updates/
 # Instructor patch generator tools (kept private)
 make_patch.py
 make_patch.bat
+make_offline_package.py
+make_offline_package.bat
 
 # OS & Editor files
 .DS_Store
