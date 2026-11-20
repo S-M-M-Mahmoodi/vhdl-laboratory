@@ -304,8 +304,8 @@
         c.terms = [{ key: "bus", name: "" }];
         break;
       case "clk":
-        c.freq = 50;
-        c.unit = "MHz";
+        c.freq = 2;
+        c.unit = "Hz";
         c.terms = [{ key: "out", name: "" }];
         break;
       case "vcc":
@@ -1495,9 +1495,12 @@
           applyOutputs(fr.outputs, BL.lastInputs || {}, BL.clockPort);
           const currentCycle = (pb.baseCycle + rawCycle) % 65536;
           BL.clockCycles = currentCycle;
-          const freqStr = pb.freqHz >= 1000 ? (pb.freqHz / 1000).toFixed(1) + " kHz" : pb.freqHz.toFixed(1) + " Hz";
-          $("blSimInfo").textContent =
-            `${Object.keys(fr.outputs).length} output port(s) · clk ${BL.clockPort} [cycle ${currentCycle}] · ${freqStr} · real-time`;
+          if (now - (pb.lastInfoTime || 0) >= 100) {
+            pb.lastInfoTime = now;
+            const freqStr = pb.freqHz >= 1000 ? (pb.freqHz / 1000).toFixed(1) + " kHz" : pb.freqHz.toFixed(1) + " Hz";
+            $("blSimInfo").textContent =
+              `${Object.keys(fr.outputs).length} output port(s) · clk ${BL.clockPort} [cycle ${currentCycle}] · ${freqStr} · real-time`;
+          }
         }
       }
 
@@ -1529,24 +1532,36 @@
       return;
     }
 
-    BL.busy = true;
-    setDot("run", "simulating batch…");
-
     const clkComp = BL.comps.find((c) => c.type === "clk");
     let freqHz = 2;
     if (clkComp) {
       const f = parseFloat(clkComp.freq) || 2;
       const u = clkComp.unit || "Hz";
       if (u === "Hz") freqHz = Math.max(0.05, f);
-      else if (u === "kHz") freqHz = Math.min(60, f * 1000);
-      else if (u === "MHz") freqHz = Math.min(60, f * 1000000);
+      else if (u === "kHz") freqHz = Math.min(30, f * 1000);
+      else if (u === "MHz") freqHz = Math.min(30, f * 1000000);
     }
 
     let halfPeriod = halfPeriodNs || 10;
     if (halfPeriod > 100000) halfPeriod = 25;
 
+    // Duplicate batch suppression: if inputs and clock haven't changed, reuse cached simulation
+    const inputSig = JSON.stringify({ inputs, clockPort, halfPeriod, entity: BL.entity });
+    if (inputSig === BL.lastBatchInputSig && BL.cachedFrames && BL.cachedFrames.length) {
+      if (BL.live) {
+        startPlayback(BL.cachedFrames, freqHz, BL.lastPeriod, BL.lastPeriodStart, clockPort, inputs);
+      }
+      return;
+    }
+
+    BL.busy = true;
+    setDot("run", "simulating batch…");
+
     const generics = {};
     for (const g of BL.generics) generics[g.name] = g.default;
+
+    // Adaptive batch sizing: 128 cycles for <= 10Hz, 256 for higher
+    const adaptiveCycles = freqHz <= 10 ? 128 : 256;
 
     const payload = {
       files: p.files.map((f) => ({
@@ -1558,7 +1573,8 @@
         inputs: { ...inputs, generics },
         clock_port: clockPort,
         clock_half_period_ns: halfPeriod,
-        batch_cycles: 2048,
+        batch_cycles: adaptiveCycles,
+        trim_periodic: true,
       },
       standard: p.standard || "08",
       dependencies: p.dependencies || [],
@@ -1578,6 +1594,9 @@
         blLogLine("err", d.message || `HTTP ${resp.status}`);
         return;
       }
+      BL.lastBatchInputSig = inputSig;
+      BL.lastPeriod = d.period;
+      BL.lastPeriodStart = d.period_start;
       BL.cachedFrames = d.frames || [];
       BL.lastOutputs = d.outputs || {};
       setDot("ok", "simulation ok");
@@ -1597,7 +1616,7 @@
       BL.busy = false;
       if (BL.pendingLive) {
         BL.pendingLive = false;
-        setTimeout(() => maybeLive(), 15);
+        setTimeout(() => maybeLive(true), 15);
       }
     }
   }
@@ -1754,21 +1773,7 @@
     }
   }
 
-  function getLiveIntervalMs() {
-    const clkComp = BL.comps.find((c) => c.type === "clk");
-    if (clkComp) {
-      const f = parseFloat(clkComp.freq) || 2;
-      const u = clkComp.unit || "Hz";
-      if (u === "Hz") {
-        return Math.max(10, Math.min(2000, Math.round(1000 / Math.max(0.1, f))));
-      } else if (u === "kHz") {
-        return 33;
-      } else if (u === "MHz") {
-        return 16;
-      }
-    }
-    return 300;
-  }
+  let liveDebounceTimer = null;
 
   function startLiveLoop() {
     stopLiveLoop();
@@ -1782,6 +1787,10 @@
   }
 
   function stopLiveLoop() {
+    if (liveDebounceTimer) {
+      clearTimeout(liveDebounceTimer);
+      liveDebounceTimer = null;
+    }
     stopPlayback();
     if (BL.liveTimer) {
       clearInterval(BL.liveTimer);
@@ -1789,7 +1798,22 @@
     }
   }
 
-  function maybeLive() {
+  function maybeLive(immediate = false) {
+    if (!BL.live) return;
+    if (liveDebounceTimer) {
+      clearTimeout(liveDebounceTimer);
+      liveDebounceTimer = null;
+    }
+    if (immediate) {
+      execMaybeLive();
+    } else {
+      // Trailing debounce (180ms) to coalesce rapid switch flipping and button presses
+      liveDebounceTimer = setTimeout(execMaybeLive, 180);
+    }
+  }
+
+  function execMaybeLive() {
+    liveDebounceTimer = null;
     if (!BL.live) return;
     stopPlayback();
     const { inputs, clockPort } = collectNets();
@@ -1916,8 +1940,10 @@
       if (c.type === "led" || c.type === "ledR") {
         const tA = c.terms.find((x) => x.key === "a");
         const on = isNetHigh(netName(tA || {}));
-        c.lit = on;
-        el.querySelector(".bl-led")?.classList.toggle("is-on", on);
+        if (c.lit !== on) {
+          c.lit = on;
+          el.querySelector(".bl-led")?.classList.toggle("is-on", on);
+        }
       } else if (c.type === "seg") {
         const segKeys = ["a", "b", "c", "d", "e", "f", "g"];
         let hasAnyIndividual = false;
@@ -2025,7 +2051,10 @@
             hi = o.value === 1 || (o.width > 1 && (o.value & 1) === 1);
           }
         }
-        pin.classList.toggle("is-hi", hi);
+        if (pin._lastHi !== hi) {
+          pin._lastHi = hi;
+          pin.classList.toggle("is-hi", hi);
+        }
       }
     }
   }
@@ -2644,6 +2673,7 @@
     };
   }
 
+  let saveBenchTimer = null;
   function saveBench() {
     const bench = getBench();
     try {
@@ -2655,14 +2685,18 @@
       p.board_bench = bench;
       const projName = p.folder || p.name;
       if (projName) {
-        fetch("/api/board/save_bench", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            project: projName,
-            board_bench: bench
-          })
-        }).catch(() => {});
+        if (saveBenchTimer) clearTimeout(saveBenchTimer);
+        saveBenchTimer = setTimeout(() => {
+          saveBenchTimer = null;
+          fetch("/api/board/save_bench", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              project: projName,
+              board_bench: bench
+            })
+          }).catch(() => {});
+        }, 250);
       }
     }
   }

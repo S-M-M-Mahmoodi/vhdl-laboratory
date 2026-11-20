@@ -699,6 +699,11 @@ def board_simulate():
                 clock_half_ns=float(clock_half),
                 batch_cycles=requested_cycles
             )
+            # Smart frame slicing: for periodic designs with trim_periodic=True,
+            # only return the unique periodic loop frames (e.g. 16 frames instead of 2048)
+            trim_periodic = bool(board_tb.get("trim_periodic", False) or data.get("trim_periodic", False))
+            if trim_periodic and period and period > 0 and len(frames) > (period_start + period):
+                frames = frames[:period_start + period]
         except Exception as exc:
             return jsonify(ok=False, message=f"VCD parsing failed: {exc}",
                            errors=errors, log=log, outputs={},

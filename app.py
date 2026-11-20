@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import decimal
 import functools
+import gzip
 import io
 import json
 import math
@@ -71,7 +72,7 @@ PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_UPDATES_DIR = BASE_DIR / "_backup_updates"
 SIM_LOCK = threading.Lock()
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "2.0.0"
 SERVER_BOOT_ID = str(uuid.uuid4())[:8]
 SERVER_BOOT_TIME = datetime.now(timezone.utc).isoformat()
 GLOBAL_SERVER = None
@@ -620,6 +621,21 @@ def add_no_cache_headers(response):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+
+    # Transparent gzip compression for responses > 1KB when client accepts gzip
+    accept_encoding = request.headers.get("Accept-Encoding", "").lower()
+    if ("gzip" in accept_encoding and
+        response.status_code == 200 and
+        not response.direct_passthrough and
+        "gzip" not in response.headers.get("Content-Encoding", "").lower()):
+        data = response.get_data()
+        if len(data) > 1024:
+            ctype = response.headers.get("Content-Type", "").lower()
+            if any(t in ctype for t in ("json", "text", "javascript", "css", "svg")):
+                compressed = gzip.compress(data, compresslevel=6)
+                response.set_data(compressed)
+                response.headers["Content-Encoding"] = "gzip"
+                response.headers["Content-Length"] = len(compressed)
     return response
 
 

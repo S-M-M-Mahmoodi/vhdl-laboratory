@@ -1570,15 +1570,15 @@ def t30(client):
 
     # 1. Online check update endpoint
     mock_gh_response = {
-        "tag_name": "v1.1.0",
-        "name": "VHDL Laboratory 1.1.0",
+        "tag_name": "v2.0.0",
+        "name": "VHDL Laboratory 2.0.0",
         "body": "Added online updates and Proteus-style board lab with vector support.",
         "published_at": "2026-11-15T22:00:00Z",
-        "html_url": "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/tag/v1.1.0",
+        "html_url": "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/tag/v2.0.0",
         "assets": [
             {
-                "name": "vhdl_lab_patch_1.1.0.zip",
-                "browser_download_url": "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v1.1.0/patch.zip"
+                "name": "vhdl_lab_patch_2.0.0.zip",
+                "browser_download_url": "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v2.0.0/patch.zip"
             }
         ]
     }
@@ -1594,18 +1594,20 @@ def t30(client):
         def __exit__(self, *args):
             pass
 
-    # Test check_update with update available
-    with mock.patch("urllib.request.urlopen", return_value=MockResp(json.dumps(mock_gh_response).encode("utf-8"))):
-        r = client.get("/api/system/check_update")
-        assert r.status_code == 200, f"Expected 200, got {r.status_code}"
-        d = r.get_json()
-        assert d["ok"] is True
-        assert d["has_update"] is True
-        assert d["latest_version"] == "1.1.0"
-        assert d["download_url"] == "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v1.1.0/patch.zip"
+    # Test check_update with update available (simulate checking for v2.0.0 from an older v1.0.0 installation)
+    import app as app_module
+    with mock.patch.object(app_module, "APP_VERSION", "1.0.0"):
+        with mock.patch("urllib.request.urlopen", return_value=MockResp(json.dumps(mock_gh_response).encode("utf-8"))):
+            r = client.get("/api/system/check_update")
+            assert r.status_code == 200, f"Expected 200, got {r.status_code}"
+            d = r.get_json()
+            assert d["ok"] is True
+            assert d["has_update"] is True
+            assert d["latest_version"] == "2.0.0"
+            assert d["download_url"] == "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v2.0.0/patch.zip"
 
-    # Test check_update when already up to date
-    mock_gh_current = dict(mock_gh_response, tag_name="v1.0.0")
+    # Test check_update when already up to date (current APP_VERSION is 2.0.0)
+    mock_gh_current = dict(mock_gh_response, tag_name="v2.0.0")
     with mock.patch("urllib.request.urlopen", return_value=MockResp(json.dumps(mock_gh_current).encode("utf-8"))):
         r = client.get("/api/system/check_update")
         assert r.status_code == 200
@@ -1632,7 +1634,7 @@ def t30(client):
     assert "Security error" in r_other_repo.get_json()["message"]
 
     # Valid GitHub release download URL
-    valid_dl_url = "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v1.1.0/patch.zip"
+    valid_dl_url = "https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/download/v2.0.0/patch.zip"
     patch_bio = io.BytesIO()
     with zipfile.ZipFile(patch_bio, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("test_update_file.txt", "auto-updated successfully")
@@ -1814,7 +1816,7 @@ def t32(client):
     assert "startLiveLoop" in bl_js, "Must include periodic live simulation loop"
     assert "stopLiveLoop" in bl_js, "Must cleanly stop live loop"
     assert "clockCycles" in bl_js, "Must track simulation clock cycles"
-    assert "getLiveIntervalMs" in bl_js, "Must calculate live interval from clock frequency"
+    assert "startPlayback" in bl_js, "Must calculate and control live playback"
 
 
 # ---------------------------------------------------------------------------

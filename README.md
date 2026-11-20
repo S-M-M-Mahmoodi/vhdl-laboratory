@@ -1,11 +1,56 @@
-# VHDL Laboratory — Offline VHDL Simulator & EDA Environment
+# VHDL Laboratory (v2.0.0) — Offline VHDL Simulator & EDA Environment
 > **Author & Software Architect:** S.M.M.Mahmoodi  
 > **Copyright:** &copy; 2026 S.M.M.Mahmoodi  
 > **License:** MIT License  
+> **Version:** `2.0.0` (Major Milestone Release)
+
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/S-M-M-Mahmoodi/vhdl-laboratory/releases/tag/v2.0.0)
+[![IEEE VHDL](https://img.shields.io/badge/IEEE%20VHDL-2008%20|%2093%20|%202002%20|%202019%20|%2087-success.svg)](https://github.com/S-M-M-Mahmoodi/vhdl-laboratory)
+[![Test Suite](https://img.shields.io/badge/tests-32%2F32%20passed%20(100%25)-brightgreen.svg)](https://github.com/S-M-M-Mahmoodi/vhdl-laboratory)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A desktop-grade, offline web-based Electronic Design Automation (EDA) suite and behavioral simulator for digital logic design, computer architecture, and hardware description language (HDL) education. Fully compliant with all major IEEE VHDL standards (**VHDL-2008**, **VHDL-93**, **VHDL-2002**, **VHDL-2019**, and **VHDL-1987**), replicating the core design workflows of industry-standard tools like Xilinx Vivado, Xilinx ISE Project Navigator, and ModelSim.
 
-Powered by the open-source **GHDL** compiler (bundled in offline release packages or installed via system PATH), interactive **CodeMirror** multi-tab editor, a professional **Project Navigator (Design & Simulation Sources)** tree, and a high-precision vector **Waveform Viewer**.
+Powered by the open-source **GHDL** compiler (bundled in offline release packages or installed via system PATH), interactive **CodeMirror** multi-tab editor, a professional **Project Navigator (Design & Simulation Sources)** tree, a high-precision vector **Waveform Viewer**, and the all-new **Board Lab** virtual FPGA prototyping workbench.
+
+---
+
+## 🚀 What's New in Version 2.0.0 (Major Release)
+
+Version 2.0.0 represents a transformative architectural milestone, expanding VHDL Laboratory from code editing and waveform simulation into a **complete virtual electronic design and hardware testing environment**:
+
+1. **Board Lab — Proteus-Style Virtual FPGA Workbench (`F8`)**:
+   - **Interactive Hardware Breadboard**: Freely place, drag, rotate, and wire digital components on an expansive dot-grid schematic canvas.
+   - **Rich Electronic Component Palette**:
+     - **DIP Switch Banks** (1, 2, 4, 8-bit) with visual logic state labels (`1`/`0`).
+     - **Momentary Push Buttons**: Realistic press-and-hold tactile actions (active-high or active-low).
+     - **Bi-Color LEDs** (Green and Red) with diode schematics, cathode/anode leads, and bright hardware illumination.
+     - **Large 7-Segment Displays**: Segment-by-segment (`a`–`g`, `dp`) and unified bus driving.
+     - **7447 BCD Decoder IC**: 4-bit BCD to active-low segment outputs with live hexadecimal preview.
+     - **Hexadecimal LCD Readouts**: Multi-bit bus displays with automatic hexadecimal formatting.
+     - **Configurable Clock Generators**: Real-time signal generators with selectable frequencies (Hz, kHz, MHz).
+     - **Power Terminals**: `VCC` (+5V / logic '1') and `GND` (0V / logic '0') power rails.
+   - **Dynamic FPGA Entity Chip**: Automatically parses entity ports (vectors and scalars) with full bit-level expansion (`data_out(3 downto 0) -> (3), (2), (1), (0)`).
+   - **Proteus Net-Label Architecture**: Wire any pin simply by matching net labels. Full support for sliced vector nets and bus grouping.
+   - **Schematic Drawing & Annotation Tools**: Draw lines (with length/angle handles), rectangles, circles, and rich text labels with hollow hit-testing.
+   - **Marquee Multi-Selection & Pan/Zoom**: Rubber-band box selection to group, move, or delete components simultaneously, with smooth mouse-wheel pan and zoom.
+
+2. **Solution A Live Playback Engine & Batch Synchronization**:
+   - **Sub-Millisecond Playback**: Real GHDL batch simulation coupled with a high-precision local timeline playback engine.
+   - **Periodic Loop Detection**: Automatically detects circuit periodicity (`period_start`, `period`) to loop periodic designs seamlessly without re-running simulation.
+   - **Self-Correcting Timing Loop**: Drift-free scheduling that dynamically cancels timer jitter and handles browser background tab throttling.
+
+3. **High-Efficiency Runtime & Resource Optimizations**:
+   - **Trailing Interaction Debounce (180ms)**: Eliminates CPU simulation spikes during rapid switch toggling or button presses.
+   - **Smart Periodic Frame Slicing**: Trims periodic simulation frames down to the exact loop period, slashing payload size by **98% (from 204KB to ~2KB)**.
+   - **Duplicate Batch Suppression**: Skips redundant GHDL compilation when input states have not changed.
+   - **High-Frequency Frame Capping**: Caps visual playback at a smooth 30 FPS for high-frequency clocks to prevent GPU fatigue.
+   - **Transparent Gzip Compression**: Standardized on-the-fly server-side compression for API endpoints.
+   - **GPU Compositor Layer Isolation**: Isolate component updates with `contain: layout` and `transform: translateZ(0)` to prevent whole-canvas repainting.
+
+4. **Reference Projects & Bench Persistence**:
+   - **Full Bench Auto-Save**: Auto-saves bench layouts, net mappings, switch positions, and annotations to both `localStorage` and on-disk `project.json`.
+   - **Integrated Reference Projects**: Includes pre-wired 4-bit synchronous binary counter (`Counter`) and 7447 BCD-to-7-segment decoder (`switch_to_seg`).
 
 ---
 
@@ -18,15 +63,21 @@ vhdl-laboratory/
   run_webapp.bat            <-- One-click Windows launcher (double-click to start)
   run_webapp.sh             <-- One-click Linux & macOS launcher (./run_webapp.sh)
   app.py                    <-- Flask EDA backend (GHDL controller, multi-file compilation, VCD parser)
-  index.html                <-- Responsive IDE interface with Project Navigator & Waveform Viewer
-  test_suite.py             <-- End-to-end automated test suite (32 verified test cases; skips T18 gracefully if WinRAR is absent)
+  board_lab.py              <-- Virtual FPGA board simulation engine, net mapper & batch timeline parser
+  index.html                <-- Responsive IDE interface with Project Navigator, Waveforms & Board Lab
+  test_suite.py             <-- End-to-end automated test suite (32 verified test cases)
   assets\
     css\app.css             <-- Dark theme stylesheets (VS Code Dark+, Vivado Dark, Monokai Pro)
+    css\board_lab.css       <-- High-performance hardware breadboard & component stylesheets
     js\app.js               <-- Application logic, Project Navigator controller, dynamic multi-tab manager
+    js\board_lab.js         <-- Board Lab canvas controller, Proteus wiring engine, batch playback scheduler
     js\waveviewer.js        <-- Vector waveform timing engine (dual cursors, value inspector, SVG/PNG export)
     fonts\                  <-- Offline typography (Inter, JetBrains Mono)
     vendor\                 <-- Offline CodeMirror core & VHDL syntax highlighters
   projects\                 <-- Local project storage database (JSON schemas & on-disk VHDL files)
+    Counter\                <-- Reference 4-bit binary counter project with live board setup
+    n_bit_adder\            <-- Parametric structural adder with component hierarchy
+    switch_to_seg\          <-- Complete 7447 BCD-to-7-segment decoder project
   workspace\                <-- Isolated scratchpad for GHDL compilation and VCD generation
   ghdl-mcode-6.0.0-ucrt64\  <-- Bundled native GHDL toolchain in distribution zip (or install via PATH)
 ```
