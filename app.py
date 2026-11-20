@@ -118,11 +118,12 @@ def wait_for_port_release(target_port: int, max_retries: int = 12, delay: float 
     return False
 
 ALLOWED_UPDATE_EXTS = {
-    ".py", ".html", ".js", ".css", ".json", ".woff2", ".woff", ".ttf",
-    ".svg", ".png", ".jpg", ".ico", ".md", ".txt", ".bat", ".cmd", ".sh"
+    "", ".py", ".html", ".js", ".css", ".json", ".woff2", ".woff", ".ttf",
+    ".svg", ".png", ".jpg", ".ico", ".md", ".txt", ".bat", ".cmd", ".sh",
+    ".yml", ".yaml"
 }
 ALLOWED_UPDATE_FILENAMES = {
-    "license",
+    "license", ".gitattributes", ".gitignore", ".gitkeep"
 }
 PROTECTED_PREFIXES = (
     "projects/", "projects\\",
@@ -131,7 +132,9 @@ PROTECTED_PREFIXES = (
     "ghdl-mcode-6.0.0-ucrt64/", "ghdl-mcode-6.0.0-ucrt64\\",
     ".git/", ".git\\",
     "make_patch.bat",
-    "make_patch.py"
+    "make_patch.py",
+    "make_offline_package.bat",
+    "make_offline_package.py"
 )
 
 
@@ -857,15 +860,16 @@ def check_online_update():
         local_ver_tuple = _parse_version(local_version)
         has_update = remote_ver_tuple > local_ver_tuple
 
-        # Look for a .zip asset or fallback to zipball_url
+        # Look for a .zip asset (prefer lightweight patch asset, then any distribution zip)
         download_url = None
         asset_name = None
-        for asset in data.get("assets", []):
-            aname = str(asset.get("name", ""))
-            if aname.lower().endswith(".zip"):
-                download_url = asset.get("browser_download_url")
-                asset_name = aname
-                break
+        zip_assets = [a for a in data.get("assets", []) if str(a.get("name", "")).lower().endswith(".zip")]
+        patch_assets = [a for a in zip_assets if "patch" in str(a.get("name", "")).lower()]
+        target_asset = patch_assets[0] if patch_assets else (zip_assets[0] if zip_assets else None)
+
+        if target_asset:
+            download_url = target_asset.get("browser_download_url")
+            asset_name = target_asset.get("name")
         if not download_url:
             download_url = data.get("zipball_url")
             asset_name = f"{remote_tag}.zip"
